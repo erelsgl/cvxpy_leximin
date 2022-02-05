@@ -108,6 +108,14 @@ class Leximin(MutliExpressionObjective):
     NAME = "leximin"
 
     def __neg__(self) -> "Leximax":
+        """
+        >>> x, y, z = cvxpy.Variable(3)
+        >>> leximin_obj = Leximin([5*x + 3*y, 2*(1-x) + 4*(1-y) + 9*(1-z)])
+        >>> leximin_obj
+        Leximin([Expression(AFFINE, UNKNOWN, ()), Expression(AFFINE, UNKNOWN, ())])
+        >>> -leximin_obj
+        Leximax([Expression(AFFINE, UNKNOWN, ()), Expression(AFFINE, UNKNOWN, ())])
+        """
         return Leximax([-arg for arg in self.args])
 
     def canonicalize(self) -> list:
@@ -154,6 +162,14 @@ class Leximax(MutliExpressionObjective):
     NAME = "leximax"
 
     def __neg__(self) -> Leximin:
+        """
+        >>> x, y, z = cvxpy.Variable(3)
+        >>> leximax_obj = Leximax([5*x + 3*y, 2*(1-x) + 4*(1-y) + 9*(1-z)])
+        >>> leximax_obj
+        Leximax([Expression(AFFINE, UNKNOWN, ()), Expression(AFFINE, UNKNOWN, ())])
+        >>> -leximax_obj
+        Leximin([Expression(AFFINE, UNKNOWN, ()), Expression(AFFINE, UNKNOWN, ())])
+        """
         return Leximin([-arg for arg in self.args])
 
     def canonicalize(self):
@@ -186,3 +202,10 @@ class Leximax(MutliExpressionObjective):
     def primal_to_result(result):
         """The value of the objective given the solver primal value."""
         return -result
+
+
+if __name__ == "__main__":
+    import doctest
+
+    (failures, tests) = doctest.testmod(report=True)
+    print("{} failures, {} tests".format(failures, tests))
