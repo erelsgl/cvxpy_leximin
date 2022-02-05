@@ -8,6 +8,7 @@ Since:  2022-02.
 import cvxpy, abc
 from cvxpy.expressions.expression import Expression
 import cvxpy.lin_ops.lin_utils as lu
+from cvxpy.interface.matrix_utilities import scalar_value
 
 
 class MutliExpressionObjective(cvxpy.problems.objective.Objective):

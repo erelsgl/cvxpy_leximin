@@ -26,6 +26,8 @@ objective = Leximin([utility_Alice, utility_George])
 # A problem is defined and solved just like any cvxpy problem:
 problem = Problem(objective, constraints=feasible_allocation)
 problem.solve()
+print("Problem status: ", problem.status)
+print("Objective value: ", objective.value)  # equivalent to problem.value
 print(f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}.")
 # The utility vector is now ~(7.6, 7.6), which maximizes the smallest value.
 print(f"The allocation is: {a.value}.")
@@ -36,6 +38,8 @@ print("\n## Example 2")
 utility_George = (1 - a[0]) * 2 + (1 - a[1]) * 4 + (1 - a[2]) * 9
 problem = Problem(objective=Leximin([utility_Alice, utility_George]), constraints=feasible_allocation)
 problem.solve()
+print("Problem status: ", problem.status)
+print("Problem value: ", problem.value)  # equivalent to problem.objective.value
 print(f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}.")
 # The utility vector is now (8,9). It maximizes the smallest value (8), and subject to this, the next-smallest value (9).
 print(f"The allocation is: {a.value}.")
@@ -48,4 +52,10 @@ LOGGER.setLevel(logging.INFO)
 problem.solve()
 
 
-print(problem.status)
+# print("\n## Example 3: leximax allocation\n")
+# problem = Problem(objective=Leximax([utility_Alice, utility_George]), constraints=feasible_allocation)
+# problem.solve()
+# print(f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}.")
+# # The utility vector is now (8,9). It maximizes the smallest value (8), and subject to this, the next-smallest value (9).
+# print(f"The allocation is: {a.value}.")
+# # It is [1, 1, 0, 0]: Alice gets resources 0 and 1 (utility=8) and George gets resources 2 and 3 (utility=9).
