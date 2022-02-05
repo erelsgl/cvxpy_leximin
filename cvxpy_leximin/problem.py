@@ -9,7 +9,6 @@ import cvxpy
 from cvxpy import Minimize, Maximize, error
 from cvxpy.constraints.constraint import Constraint
 from cvxpy_leximin.objective import Leximin, Leximax
-from cvxpy_leximin.solve import solve
 from cvxpy.interface.matrix_utilities import scalar_value
 from typing import Dict, List, Optional, Union
 import logging
@@ -102,6 +101,19 @@ class Problem(cvxpy.problems.problem.Problem):
         else:
             return scalar_value(self._value)
 
+    def _solve_sub_problem(self, sub_problem: cvxpy.Problem, *args, **kwargs):
+        sub_problem.solve(*args, **kwargs)
+        if sub_problem.status == "infeasible":
+            self._status = sub_problem.status
+            LOGGER.warning("Sub-problem is infeasible")
+            return False
+        elif sub_problem.status == "unbounded":
+            self._status = sub_problem.status
+            LOGGER.warning("Sub-problem is unbounded")
+            return False
+        else:
+            return True
+
     def _solve_leximin(self, *args, **kwargs):
         """
         Find a leximin-optimal vector of utilities, subject to the given constraints.
@@ -133,11 +145,13 @@ class Problem(cvxpy.problems.problem.Problem):
                 if value is not None
             ]
 
-            aux_problem = cvxpy.Problem(
+            sub_problem = cvxpy.Problem(
                 objective=cvxpy.Maximize(minimum_value_for_free_objectives),
                 constraints=constraints + inequalities_for_saturated_objectives + inequalities_for_free_objectives,
             )
-            solve(aux_problem, **kwargs)  # , solvers=solvers
+            if not self._solve_sub_problem(sub_problem, *args, **kwargs):
+                return
+
             max_min_value_for_free_objectives = minimum_value_for_free_objectives.value.item()
 
             values_in_max_min_allocation = [objective.value for objective in sub_objectives]
@@ -170,13 +184,14 @@ class Problem(cvxpy.problems.problem.Problem):
                     sub_objectives[i] >= max_min_value_lower_threshold for i in free_objectives if i != ifree
                 ]
 
-                aux_problem = cvxpy.Problem(
+                sub_problem = cvxpy.Problem(
                     objective=cvxpy.Maximize(sub_objectives[ifree]),
                     constraints=constraints
                     + inequalities_for_saturated_objectives
                     + inequalities_for_other_free_objectives,
                 )
-                solve(aux_problem, **kwargs)  # , solvers=solvers
+                if not self._solve_sub_problem(sub_problem, *args, **kwargs):
+                    return
                 max_value_for_ifree = sub_objectives[ifree].value.item()
 
                 if max_value_for_ifree > max_min_value_upper_threshold:
@@ -205,8 +220,8 @@ class Problem(cvxpy.problems.problem.Problem):
                 LOGGER.info(
                     "All objectives are saturated -- values are %s.", map_saturated_objective_to_saturated_value
                 )
-                self._status = aux_problem.status
-                self._solution = aux_problem.solution
+                self._status = sub_problem.status
+                self._solution = sub_problem.solution
 
                 if type(self.objective) == Leximax:
                     for i in range(num_of_objectives):
