@@ -1,12 +1,12 @@
 import setuptools, pathlib
 
 HERE = pathlib.Path(__file__).parent
+print(f"\nHERE = {HERE.absolute()}\n")
 README = (HERE / "README.md").read_text()
 REQUIRES = (HERE / "requirements.txt").read_text().strip().split("\n")
 REQUIRES = [lin.strip() for lin in REQUIRES]
 
-# from cvxpy_leximin import __version__
-__version__ = "0.1.0"
+from cvxpy_leximin import __version__
 
 setuptools.setup(
     name="cvxpy_leximin",
@@ -16,7 +16,7 @@ setuptools.setup(
     author="Erel Segal-Halevi",
     author_email="erelsgl@gmail.com",
     description="Let CVXPY support optimization in leximin order",
-    keywords="optimization",
+    keywords="optimization, cvxpy, leximin",
     license="Apache License, Version 2.0",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -26,12 +26,16 @@ setuptools.setup(
         "Bug Reports": "https://github.com/erelsgl/cvxpy_leximin/issues",
         "Source Code": "https://github.com/erelsgl/cvxpy_leximin",
     },
-    python_requires=">=3.9",
+    python_requires=">=3.8",
     include_package_data=True,
+    classifiers=[
+        # see https://pypi.org/classifiers/
+        "Development Status :: 3 - Alpha",
+    ],
 )
 
 # Build:
-#   [delete old folders: build, dist, test_env]
+#   [delete old folders: build, dist, *.egg_info, .venv_test]
 #   python setup.py sdist bdist_wheel
 
 
@@ -41,10 +45,9 @@ setuptools.setup(
 # Publish to real PyPI:
 #   twine upload --repository pypi dist/*
 
-
 # Test in a virtual environment:
-#    cd ..
-#    virtualenv test_env
-#    test_env\Scripts\activate
-#    pip install -i https://test.pypi.org/simple/ cvxpy_leximin
-#    pytest test_env\Lib\site-packages\cvxpy_leximin
+#    virtualenv .venv_test
+#    .venv_test\Scripts\activate
+#    pip install cvxpy_leximin
+#    python examples\leximin_allocation.py
+#    .venv\Scripts\activate
