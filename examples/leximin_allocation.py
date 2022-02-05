@@ -52,10 +52,12 @@ LOGGER.setLevel(logging.INFO)
 problem.solve()
 
 
-# print("\n## Example 3: leximax allocation\n")
-# problem = Problem(objective=Leximax([utility_Alice, utility_George]), constraints=feasible_allocation)
-# problem.solve()
-# print(f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}.")
-# # The utility vector is now (8,9). It maximizes the smallest value (8), and subject to this, the next-smallest value (9).
-# print(f"The allocation is: {a.value}.")
-# # It is [1, 1, 0, 0]: Alice gets resources 0 and 1 (utility=8) and George gets resources 2 and 3 (utility=9).
+print("\n## Example 3: leximax allocation\n")
+utility_Alice = a[0] * 5 + a[1] * 2 + a[2] * 0
+utility_George = (1 - a[0]) * 2 + (1 - a[1]) * 4 + (1 - a[2]) * 9
+problem = Problem(objective=Leximax([utility_Alice, utility_George]), constraints=feasible_allocation)
+problem.solve()
+print(f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}.")
+# The utility vector is now ~(2,2). It minimizes the largest value.
+print(f"The allocation is: {a.value}.")
+# It is ~[0, 1, 1, 0]: Alice gets resources 1 and 2 (utility=2) and George gets resources 0 and 3 (utility=2 too).

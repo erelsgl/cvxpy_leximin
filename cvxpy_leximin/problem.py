@@ -30,7 +30,7 @@ class Problem(cvxpy.problems.problem.Problem):
     constraints : list
         The constraints on the problem variables.
 
-    EXAMPLE:  resource allocation. There are four resources to allocate among two people.
+    EXAMPLE 1:  leximin resource allocation. There are four resources to allocate among two people.
     Alice values the resources at 5, 3, 0, 0.
     George values the resources at 2, 4, 9, 0.
     The variables a[0], a[1], a[2], a[3] denote the fraction of each resource given to Alice.
@@ -42,10 +42,23 @@ class Problem(cvxpy.problems.problem.Problem):
     >>> objective = Leximin([utility_Alice, utility_George])
     >>> problem = Problem(objective, constraints=feasible_allocation)
     >>> problem.solve()
+    [8.0, 9.0]
     >>> round(utility_Alice.value), round(utility_George.value)
     (8, 9)
     >>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
     [1, 1, 0, 0]
+
+    EXAMPLE 2: leximax chores allocation. There are four chores to allocate among two people.
+    >>> utility_Alice = a[0]*5 + a[1]*2 + a[2]*0
+    >>> utility_George   = (1-a[0])*2 + (1-a[1])*4 + (1-a[2])*9
+    >>> objective = Leximax([utility_Alice, utility_George])
+    >>> problem = Problem(objective, constraints=feasible_allocation)
+    >>> problem.solve()
+    [2.002, 1.9992]
+    >>> round(utility_Alice.value), round(utility_George.value)
+    (2, 2)
+    >>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
+    [0, 1, 1, 0]
     """
 
     def __init__(
@@ -93,7 +106,11 @@ class Problem(cvxpy.problems.problem.Problem):
         """
         Find a leximin-optimal vector of utilities, subject to the given constraints.
         """
-        sub_objectives = self.objective.args
+        if type(self.objective) == Leximax:
+            sub_objectives = [-arg for arg in self.objective.args]
+        else:  # Leximin
+            sub_objectives = self.objective.args
+
         constraints = self.constraints
         num_of_objectives = len(sub_objectives)
 
@@ -190,8 +207,13 @@ class Problem(cvxpy.problems.problem.Problem):
                 )
                 self._status = aux_problem.status
                 self._solution = aux_problem.solution
+
+                if type(self.objective) == Leximax:
+                    for i in range(num_of_objectives):
+                        self.objective.args[i] = -sub_objectives[i]
                 self._value = self.objective.value
-                return
+                return self.value
+
             else:
                 free_objectives = new_free_agents
                 continue
@@ -199,7 +221,7 @@ class Problem(cvxpy.problems.problem.Problem):
     def solve(self, *args, **kwargs):
         if type(self.objective) == Maximize or type(self.objective) == Minimize:
             return super().solve(*args, **kwargs)
-        elif type(self.objective) == Leximin:
+        elif type(self.objective) == Leximin or type(self.objective) == Leximax:
             return self._solve_leximin(*args, **kwargs)
         else:
             raise NotImplementedError(f"Objective of type {type(self.objective)} is not supported")

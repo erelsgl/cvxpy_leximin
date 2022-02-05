@@ -6,6 +6,7 @@ from cvxpy.tests.base_test import BaseTest
 from cvxpy_leximin import Problem, Leximin, Leximax
 from cvxpy.constraints import PSD, ExpCone, NonPos, Zero
 from cvxpy import Variable
+import numpy as np
 
 
 class TestProblem(BaseTest):
@@ -36,7 +37,7 @@ class TestProblem(BaseTest):
         prob = Problem(Leximin([self.a, self.b, self.c]), [Zero(self.a), NonPos(self.b)])
         self.assertEqual(str(prob), result)
 
-    def test_solve_1(self) -> None:
+    def test_leximin_1(self) -> None:
         a = Variable(4)
         feasible_allocation = [x >= 0 for x in a] + [x <= 1 for x in a]
         utility_Alice = a[0] * 5 + a[1] * 3 + a[2] * 0
@@ -51,7 +52,7 @@ class TestProblem(BaseTest):
         self.assertAlmostEqual(problem.value, [8, 9], places=3)
         self.assertAlmostEqual(list(a.value), [1, 1, 0, 0], places=3)
 
-    def test_solve_2(self) -> None:
+    def test_leximin_2(self) -> None:
         a = Variable(4)
         feasible_allocation = [x >= 0 for x in a] + [x <= 1 for x in a]
         utility_Alice = -5 * a[0] - 3 * a[1] - 0 * a[2]
@@ -66,7 +67,7 @@ class TestProblem(BaseTest):
         self.assertAlmostEqual(a[2].value, 1, places=2)
         self.assertAlmostEqual(a[3].value, 0, places=2)
 
-    def test_solve_3(self) -> None:
+    def test_leximin_3(self) -> None:
         a = Variable(4)
         feasible_allocation = [x >= 0 for x in a] + [x <= 1 for x in a]
         utility_Alice = (1 / 3) * a[0] + 0 * a[1] + (1 / 3) * a[2] + (1 / 3) * a[3]
@@ -80,6 +81,21 @@ class TestProblem(BaseTest):
         self.assertAlmostEqual(a[1].value, 0, places=2)
         self.assertAlmostEqual(a[2].value, 1, places=2)
         self.assertAlmostEqual(a[3].value, 1, places=2)
+
+    def test_leximax_1(self) -> None:
+        a = Variable(4)
+        feasible_allocation = [x >= 0 for x in a] + [x <= 1 for x in a]
+        utility_Alice = a[0] * 5 + a[1] * 2 + a[2] * 0
+        utility_George = (1 - a[0]) * 2 + (1 - a[1]) * 4 + (1 - a[2]) * 9
+        problem = Problem(Leximax([utility_Alice, utility_George]), constraints=feasible_allocation)
+        problem.solve()
+        self.assertEqual(problem.status, "optimal")
+        self.assertAlmostEqual(utility_Alice.value, 2, places=2)
+        self.assertAlmostEqual(utility_George.value, 2, places=2)
+        self.assertAlmostEqual(a[0].value, 0, places=2)
+        self.assertAlmostEqual(a[1].value, 1, places=2)
+        self.assertAlmostEqual(a[2].value, 1, places=2)
+        self.assertAlmostEqual(a[3].value, 0, places=2)
 
 
 if __name__ == "__main__":
