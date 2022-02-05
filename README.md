@@ -1,8 +1,14 @@
-# cvxpy_leximin
+# CVXPY + Leximin
 
-Extends [cvxpy](https://github.com/cvxpy/cvxpy) by adding support for optimization in [leximin order](https://en.wikipedia.org/wiki/Leximin_order).
+The `cvxpy_leximin` package extends [cvxpy](https://github.com/cvxpy/cvxpy) by adding support for optimization in [leximin order](https://en.wikipedia.org/wiki/Leximin_order). It adds the `Leximin` objective, which takes several expressions as arguments. Solving a problem with the `Leximin` objective aims to maximize the smallest objective; subject to this, the next-smallest objective; and so on.
 
-It can be used, for example, to find an egalitarian resource allocation:
+## Installation
+
+    pip install cvxpy_leximin
+
+## Usage example
+
+Leximin optimization can be used to find an egalitarian allocation of resources among people (see [Egalitarian item allocation](https://en.wikipedia.org/wiki/Egalitarian_item_allocation).)
 
     import cvxpy, logging
     from cvxpy_leximin import Problem, Leximin
@@ -10,6 +16,7 @@ It can be used, for example, to find an egalitarian resource allocation:
     # There are four resources to allocate among two people: Alice and George.
     # The variables a[0], a[1], a[2], a[3] denote the fraction of each resource given to Alice:
     a = cvxpy.Variable(4)
+
     # The following constraint represents the fact that the allocation is feasible:
     feasible_allocation = [x >= 0 for x in a] + [x <= 1 for x in a]
 
@@ -27,9 +34,9 @@ It can be used, for example, to find an egalitarian resource allocation:
     problem.solve()
     print("Problem status: ", problem.status)   # optimal
     print("Objective value: ", objective.value)  
-    # It is (8, 9). It maximizes the smallest utility (8), and subject to that, the next-smallest one (9).
+       # It is (8, 9). It maximizes the smallest utility (8), and subject to that, the next-smallest one (9).
     print("Allocation: ", a.value)
-    # It is [1, 1, 0, 0]: Alice gets resources 0 and 1 (utility=8) and George resources 2 and 3 (utility=9).
+       # It is [1, 1, 0, 0]: Alice gets resources 0 and 1 (utility=8) and George resources 2 and 3 (utility=9).
 
 
 For more examples, see the [examples folder](examples/).
