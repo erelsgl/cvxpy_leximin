@@ -9,6 +9,7 @@ import cvxpy, abc
 from cvxpy.expressions.expression import Expression
 import cvxpy.lin_ops.lin_utils as lu
 from cvxpy.interface.matrix_utilities import scalar_value
+from typing import List
 
 
 class MutliExpressionObjective(cvxpy.problems.objective.Objective):
@@ -27,7 +28,7 @@ class MutliExpressionObjective(cvxpy.problems.objective.Objective):
 
     NAME = "multi expression objective"
 
-    def __init__(self, expressions: list[Expression]) -> None:
+    def __init__(self, expressions: List[Expression]) -> None:
         self.args = [Expression.cast_to_const(expr) for expr in expressions]
         # Validate that the objectives resolves to a scalar.
         for arg in self.args:

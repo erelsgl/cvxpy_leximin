@@ -6,11 +6,10 @@ README = (HERE / "README.md").read_text()
 REQUIRES = (HERE / "requirements.txt").read_text().strip().split("\n")
 REQUIRES = [lin.strip() for lin in REQUIRES]
 
-from cvxpy_leximin import __version__
 
 setuptools.setup(
     name="cvxpy_leximin",
-    version=__version__,
+    # version is taken from setup.cfg, which takes it from cvxpy_leximin.__init__.py
     packages=setuptools.find_packages(),
     install_requires=REQUIRES,
     author="Erel Segal-Halevi",
