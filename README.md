@@ -1,5 +1,7 @@
 # CVXPY + Leximin
 
+![Tox result](https://github.com/erelsgl/cvxpy_leximin/workflows/test/badge.svg)
+
 The `cvxpy_leximin` package extends [cvxpy](https://github.com/cvxpy/cvxpy) by adding support for optimization in [leximin order](https://en.wikipedia.org/wiki/Leximin_order). It adds the `Leximin` objective, which takes several expressions as arguments. Solving a problem with the `Leximin` objective aims to maximize the smallest objective; subject to this, the next-smallest objective; and so on.
 
 ## Installation
