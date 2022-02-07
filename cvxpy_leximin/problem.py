@@ -124,6 +124,13 @@ class Problem(cvxpy.problems.problem.Problem):
     def _solve_leximin(self, *args, **kwargs):
         """
         Find a leximin-optimal vector of utilities, subject to the given constraints.
+
+        The algorithm is based on:
+        > [Stephen J. Willson](https://faculty.sites.iastate.edu/swillson/),
+        > "Fair Division Using Linear Programming" (1998).
+        > Part 6, pages 20--27.
+
+        I am grateful to Sylvain Bouveret for his help with the algorithm. All remaining errors and bugs are my own.
         """
         if type(self.objective) == Leximax:
             sub_objectives = [-arg for arg in self.objective.args]

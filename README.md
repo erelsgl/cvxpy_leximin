@@ -43,6 +43,14 @@ Leximin optimization can be used to find an egalitarian allocation of resources 
 
 For more examples, see the [examples folder](examples/).
 
+## Credits
+
+The algorithm is based on:
+> [Stephen J. Willson](https://faculty.sites.iastate.edu/swillson/),
+> "Fair Division Using Linear Programming" (1998).
+> Part 6, pages 20--27.
+
+I am grateful to Sylvain Bouveret for his help with the algorithm. All remaining errors and bugs are my own.
 
 ## Status
 
