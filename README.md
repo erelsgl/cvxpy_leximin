@@ -6,12 +6,12 @@ The `cvxpy_leximin` package extends [cvxpy](https://github.com/cvxpy/cvxpy) by a
 Each of these objectives takes as an argument a list of expressions.
 Solving a problem with the `Leximin` objective follows the [leximin order](https://en.wikipedia.org/wiki/Leximin_order), that is:
  
-* Find the solutions in which the smallest expression is as large as possible.
+* Find the solutions in which the smallest expression is as large as possible (subject to the constraints).
 * If there are two or more such solutions, then among all these solutions, find the ones in which the next-smallest expression is as large as possible.
 * If there are two or more such solutions, then among all these solutions, find the ones in which the third-smallest expression is as large as possible.
 And so on.
 
-The `Leximax` objective is solved in the opposite way: find the solutions that *minimize* the *largest* expression; among them,  minimize the next-largest expression; and so on.
+The `Leximax` objective is solved in the opposite way: find the solutions that *minimize* the *largest* expression (subject to the constraints); among them,  minimize the next-largest expression; and so on.
 
 Note that the current implementation works only when domain (as defined by the constraints) is convex. In particular, it does not work for integer programming.
 
