@@ -15,6 +15,7 @@ from cvxpy.interface.matrix_utilities import scalar_value
 from cvxpy.problems.problem import SizeMetrics, SolverStats
 
 from cvxpy_leximin.objective import Leximax, Leximin
+from copy import deepcopy
 
 LOGGER = logging.getLogger("__cvxpy_leximin__")
 
