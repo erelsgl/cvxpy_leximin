@@ -109,6 +109,7 @@ class Problem(cvxpy.problems.problem.Problem):
             return scalar_value(self._value)
 
     def _solve_sub_problem(self, sub_problem: cvxpy.Problem, *args, **kwargs):
+        kwargs = deepcopy(kwargs)  # cvxpy.Problem.solve might modify kwargs.
         sub_problem.solve(*args, **kwargs)
         if sub_problem.status == "infeasible":
             self._status = sub_problem.status
