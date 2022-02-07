@@ -8,7 +8,7 @@ Solving a problem with the `Leximin` objective follows the [leximin order](https
  
 * Find the solutions in which the smallest expression is as large as possible.
 * If there are two or more such solutions, then among all these solutions, find the ones in which the next-smallest expression is as large as possible.
-* are two or more such solutions, then among all these solutions, find the ones in which the third-smallest expression is as large as possible.
+* If there are two or more such solutions, then among all these solutions, find the ones in which the third-smallest expression is as large as possible.
 And so on.
 
 The `Leximax` objective works in a similar way: it finds a solution that *minimize*s the *largest* expression; if there are several such solutions, it minimizes the next-largest expression; and so on.
