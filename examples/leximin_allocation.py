@@ -4,8 +4,11 @@ Example: computing a leximin-egalitarian resource allocation.
 See Wikipedia pages: Leximin cake-cutting, Leximin item allocation
 """
 
-import cvxpy, logging
-from cvxpy_leximin import Problem, Leximin, Leximax, LOGGER
+import logging
+
+import cvxpy
+
+from cvxpy_leximin import LOGGER, Leximax, Leximin, Problem
 
 print("\n## Example 1")
 # There are four resources to allocate among two people: Alice and George.

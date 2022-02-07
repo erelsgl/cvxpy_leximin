@@ -1,4 +1,6 @@
-import setuptools, pathlib
+import pathlib
+
+import setuptools
 
 HERE = pathlib.Path(__file__).parent
 print(f"\nHERE = {HERE.absolute()}\n")

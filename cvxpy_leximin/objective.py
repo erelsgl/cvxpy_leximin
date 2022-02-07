@@ -5,11 +5,14 @@ Author: Erel Segal-Halevi.
 Since:  2022-02.
 """
 
-import cvxpy, abc
-from cvxpy.expressions.expression import Expression
-import cvxpy.lin_ops.lin_utils as lu
-from cvxpy.interface.matrix_utilities import scalar_value
+import abc
 from typing import List
+
+import cvxpy
+import cvxpy.lin_ops.lin_utils as lu
+from cvxpy.expressions.expression import Expression
+from cvxpy.interface.matrix_utilities import scalar_value
+from cvxpy.utilities import scopes
 
 
 class MutliExpressionObjective(cvxpy.problems.objective.Objective):
@@ -33,9 +36,13 @@ class MutliExpressionObjective(cvxpy.problems.objective.Objective):
         # Validate that the objectives resolves to a scalar.
         for arg in self.args:
             if not arg.is_scalar():
-                raise ValueError(f"The '{self.NAME}' objective must resolve to a scalar.")
+                raise ValueError(
+                    f"The '{self.NAME}' objective must resolve to a scalar."
+                )
             if not arg.is_real():
-                raise ValueError(f"The '{self.NAME}' objective must be real valued.")
+                raise ValueError(
+                    f"The '{self.NAME}' objective must be real valued."
+                )
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({repr(self.args)})"
@@ -58,7 +65,10 @@ class MutliExpressionObjective(cvxpy.problems.objective.Objective):
     @property
     def value(self) -> list:
         """The values of the objective expressions."""
-        return [None if arg.value is None else scalar_value(arg.value) for arg in self.args]
+        return [
+            None if arg.value is None else scalar_value(arg.value)
+            for arg in self.args
+        ]
 
     def is_quadratic(self) -> bool:
         """Returns if all objectives are quadratic functions."""
@@ -99,7 +109,8 @@ class Leximin(MutliExpressionObjective):
     Parameters
     ----------
     expressions: Expression
-        The list of expressions for which the leximin order should be applied. Must be scalars.
+        The list of expressions for which the leximin order should be applied.
+        Must be scalars.
 
     Raises
     ------
@@ -114,9 +125,9 @@ class Leximin(MutliExpressionObjective):
         >>> x, y, z = cvxpy.Variable(3)
         >>> leximin_obj = Leximin([5*x + 3*y, 2*(1-x) + 4*(1-y) + 9*(1-z)])
         >>> leximin_obj
-        Leximin([Expression(AFFINE, UNKNOWN, ()), Expression(AFFINE, UNKNOWN, ())])
+        Leximin([Expression(AFFINE,UNKNOWN,()), Expression(AFFINE,UNKNOWN,())])
         >>> -leximin_obj
-        Leximax([Expression(AFFINE, UNKNOWN, ()), Expression(AFFINE, UNKNOWN, ())])
+        Leximax([Expression(AFFINE,UNKNOWN,()), Expression(AFFINE,UNKNOWN,())])
         """
         return Leximax([-arg for arg in self.args])
 
