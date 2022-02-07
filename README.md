@@ -2,7 +2,18 @@
 
 ![Tox result](https://github.com/erelsgl/cvxpy_leximin/workflows/tox/badge.svg)
 
-The `cvxpy_leximin` package extends [cvxpy](https://github.com/cvxpy/cvxpy) by adding support for optimization in [leximin order](https://en.wikipedia.org/wiki/Leximin_order). It adds the `Leximin` objective, which takes several expressions as arguments. Solving a problem with the `Leximin` objective aims to maximize the smallest objective; subject to this, the next-smallest objective; and so on.
+The `cvxpy_leximin` package extends [cvxpy](https://github.com/cvxpy/cvxpy) by adding two objectives: `Leximin` and `Leximax`.
+Each of these objectives takes as an argument a list of expressions.
+Solving a problem with the `Leximin` objective follows the [leximin order](https://en.wikipedia.org/wiki/Leximin_order), that is:
+ 
+* Find the solutions in which the smallest expression is as large as possible.
+* If there are two or more such solutions, then among all these solutions, find the ones in which the next-smallest expression is as large as possible.
+* are two or more such solutions, then among all these solutions, find the ones in which the third-smallest expression is as large as possible.
+And so on.
+
+The `Leximax` objective works in a similar way: it finds a solution that *minimize*s the *largest* expression; if there are several such solutions, it minimizes the next-largest expression; and so on.
+
+Note that the current implementation works only when domain (as defined by the constraints) is convex. In particular, it does not work for integer programming.
 
 ## Installation
 
