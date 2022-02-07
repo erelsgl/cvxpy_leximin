@@ -65,8 +65,8 @@ I am grateful to Sylvain Bouveret for his help with the algorithm. All remaining
 
 ## Status
 
-The functionality was tested only on fair allocation problems, only on linear objectives, and only on the default solver (SCIPY).
+The functionality was tested only on fair allocation problems, only on objectives with linear expressions, and only on the default solver (SCIPY).
 
-If you would like to contribute, it could be great to test leximin optimization on other kinds of problems, objectives and solvers.
+If you would like to contribute, it could be great to test leximin optimization on other kinds of problems, expressions and solvers.
 
 
