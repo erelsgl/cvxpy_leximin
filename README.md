@@ -11,7 +11,7 @@ Solving a problem with the `Leximin` objective follows the [leximin order](https
 * If there are two or more such solutions, then among all these solutions, find the ones in which the third-smallest expression is as large as possible.
 And so on.
 
-The `Leximax` objective works in a similar way: it finds a solution that *minimize*s the *largest* expression; if there are several such solutions, it minimizes the next-largest expression; and so on.
+The `Leximax` objective is solved in the opposite way: find the solutions that *minimize* the *largest* expression; among them,  minimize the next-largest expression; and so on.
 
 Note that the current implementation works only when domain (as defined by the constraints) is convex. In particular, it does not work for integer programming.
 
