@@ -125,9 +125,9 @@ class Leximin(MutliExpressionObjective):
         >>> x, y, z = cvxpy.Variable(3)
         >>> leximin_obj = Leximin([5*x + 3*y, 2*(1-x) + 4*(1-y) + 9*(1-z)])
         >>> leximin_obj
-        Leximin([Expression(AFFINE,UNKNOWN,()), Expression(AFFINE,UNKNOWN,())])
+        Leximin([Expression(AFFINE, UNKNOWN, ()), Expression(AFFINE, UNKNOWN, ())])
         >>> -leximin_obj
-        Leximax([Expression(AFFINE,UNKNOWN,()), Expression(AFFINE,UNKNOWN,())])
+        Leximax([Expression(AFFINE, UNKNOWN, ()), Expression(AFFINE, UNKNOWN, ())])
         """
         return Leximax([-arg for arg in self.args])
 

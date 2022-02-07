@@ -42,3 +42,12 @@ Leximin optimization can be used to find an egalitarian allocation of resources 
 
 
 For more examples, see the [examples folder](examples/).
+
+
+## Status
+
+The functionality was tested only on fair allocation problems, only on linear objectives, and only on the default solver (SCIPY).
+
+If you would like to contribute, it could be great to test leximin optimization on other kinds of problems, objectives and solvers.
+
+
