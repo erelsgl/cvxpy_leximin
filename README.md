@@ -25,16 +25,16 @@ Leximin optimization can be used to find an egalitarian allocation of resources 
     # Alice values the resources at 5, 3, 0, 0:
     utility_Alice = a[0] * 5 + a[1] * 3 + a[2] * 0
 
-    # George values the resources at 2, 4, 7, 0:
+    # George values the resources at 2, 4, 9, 0:
     utility_George = (1 - a[0]) * 2 + (1 - a[1]) * 4 + (1 - a[2]) * 9
 
-    # A leximin allocation is an allocation that maximizes the sorted vector of utilities, in lexicographic order:
+    # The leximin objective is: maximize the smallest utility, and subject to that, the next-smallest utility.
     objective = Leximin([utility_Alice, utility_George])
 
     # A problem is defined and solved like any cvxpy problem:
     problem = Problem(objective, constraints=feasible_allocation)
     problem.solve()
-    print("Problem status: ", problem.status)   # optimal
+    print("Problem status: ", problem.status)   # Should be optimal
     print("Objective value: ", objective.value)  
        # It is (8, 9). It maximizes the smallest utility (8), and subject to that, the next-smallest one (9).
     print("Allocation: ", a.value)
