@@ -36,8 +36,11 @@ setuptools.setup(
 )
 
 # Build:
-#   [delete old folders: build, dist, *.egg_info, .venv_test]
-#   python setup.py sdist bdist_wheel
+#   Delete old folders: build, dist, *.egg_info, .venv_test.
+#   Then run:
+#        build
+#   Or (old version):
+#        python setup.py sdist bdist_wheel
 
 
 # Publish to test PyPI:
