@@ -1,5 +1,4 @@
 import pathlib
-
 import setuptools
 
 HERE = pathlib.Path(__file__).parent
@@ -7,18 +6,20 @@ print(f"\nHERE = {HERE.absolute()}\n")
 README = (HERE / "README.md").read_text()
 REQUIRES = (HERE / "requirements.txt").read_text().strip().split("\n")
 REQUIRES = [lin.strip() for lin in REQUIRES]
-
+VERSION = (HERE / "VERSION").read_text().strip()
+    # See https://packaging.python.org/en/latest/guides/single-sourcing-package-version/
 
 setuptools.setup(
     name="cvxpy_leximin",
-    # version is taken from setup.cfg, which takes it from cvxpy_leximin.__init__.py
     packages=setuptools.find_packages(),
+    version=VERSION,
     install_requires=REQUIRES,
     author="Erel Segal-Halevi",
     author_email="erelsgl@gmail.com",
     description="Let CVXPY support optimization in leximin order",
     keywords="optimization, cvxpy, leximin",
     license="Apache License, Version 2.0",
+    license_files = ('LICENSE',),
     long_description=README,
     long_description_content_type="text/markdown",
     url="https://github.com/erelsgl/cvxpy_leximin",
