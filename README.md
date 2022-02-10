@@ -1,6 +1,7 @@
 # CVXPY + Leximin
 
 ![Tox result](https://github.com/erelsgl/cvxpy_leximin/workflows/tox/badge.svg)
+[![PyPI version](https://badge.fury.io/py/cvxpy-leximin.svg)](https://badge.fury.io/py/cvxpy-leximin)
 
 The `cvxpy_leximin` package extends [cvxpy](https://github.com/cvxpy/cvxpy) by adding two objectives: `Leximin` and `Leximax`.
 Each of these objectives takes as an argument a list of expressions.
