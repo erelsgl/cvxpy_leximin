@@ -1,16 +1,19 @@
 import pathlib
 import setuptools
 
+NAME = "cvxpy_leximin"
+URL = "https://github.com/erelsgl/" + NAME
 HERE = pathlib.Path(__file__).parent
 print(f"\nHERE = {HERE.absolute()}\n")
 README = (HERE / "README.md").read_text()
 REQUIRES = (HERE / "requirements.txt").read_text().strip().split("\n")
 REQUIRES = [lin.strip() for lin in REQUIRES]
-VERSION = (HERE / "VERSION").read_text().strip()
-    # See https://packaging.python.org/en/latest/guides/single-sourcing-package-version/
+print(f'\nVERSION = {(HERE / NAME / "VERSION").absolute()}\n')
+VERSION = (HERE / NAME / "VERSION").read_text().strip()
+# See https://packaging.python.org/en/latest/guides/single-sourcing-package-version/
 
 setuptools.setup(
-    name="cvxpy_leximin",
+    name=NAME,
     packages=setuptools.find_packages(),
     version=VERSION,
     install_requires=REQUIRES,
@@ -19,15 +22,11 @@ setuptools.setup(
     description="Let CVXPY support optimization in leximin order",
     keywords="optimization, cvxpy, leximin",
     license="Apache License, Version 2.0",
-    license_files = ('LICENSE',),
+    license_files=("LICENSE",),
     long_description=README,
     long_description_content_type="text/markdown",
-    url="https://github.com/erelsgl/cvxpy_leximin",
-    project_urls={
-        "Documentation": "https://github.com/erelsgl/cvxpy_leximin",
-        "Bug Reports": "https://github.com/erelsgl/cvxpy_leximin/issues",
-        "Source Code": "https://github.com/erelsgl/cvxpy_leximin",
-    },
+    url=URL,
+    project_urls={"Bug Reports": URL + "/issues", "Source Code": URL},
     python_requires=">=3.8",
     include_package_data=True,
     classifiers=[
