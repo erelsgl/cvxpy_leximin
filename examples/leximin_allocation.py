@@ -4,11 +4,8 @@ Example: computing a leximin-egalitarian resource allocation.
 See Wikipedia pages: Leximin cake-cutting, Leximin item allocation
 """
 
-import logging
-
-import cvxpy
-
-from cvxpy_leximin import LOGGER, Leximax, Leximin, Problem
+import cvxpy, logging
+from cvxpy_leximin import Problem, Leximin, Leximax, LOGGER
 
 print("\n## Example 1")
 # There are four resources to allocate among two people: Alice and George.
@@ -31,7 +28,9 @@ problem = Problem(objective, constraints=feasible_allocation)
 problem.solve()
 print("Problem status: ", problem.status)
 print("Objective value: ", objective.value)  # equivalent to problem.value
-print(f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}.")
+print(
+    f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}."
+)
 # The utility vector is now ~(7.6, 7.6), which maximizes the smallest value.
 print(f"The allocation is: {a.value}.")
 # It is [1, 0.85, 0, 0]: Alice gets resource 0 and 85% of resource 1 (utility=7.6) and George gets 15% of resources 2 and resource 3 (utility=7.6 too).
@@ -39,11 +38,18 @@ print(f"The allocation is: {a.value}.")
 print("\n## Example 2")
 # Now, let's assume that George values the third resource at 9 (instead of 7):
 utility_George = (1 - a[0]) * 2 + (1 - a[1]) * 4 + (1 - a[2]) * 9
-problem = Problem(objective=Leximin([utility_Alice, utility_George]), constraints=feasible_allocation)
+problem = Problem(
+    objective=Leximin([utility_Alice, utility_George]),
+    constraints=feasible_allocation,
+)
 problem.solve()
 print("Problem status: ", problem.status)
-print("Problem value: ", problem.value)  # equivalent to problem.objective.value
-print(f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}.")
+print(
+    "Problem value: ", problem.value
+)  # equivalent to problem.objective.value
+print(
+    f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}."
+)
 # The utility vector is now (8,9). It maximizes the smallest value (8), and subject to this, the next-smallest value (9).
 print(f"The allocation is: {a.value}.")
 # It is [1, 1, 0, 0]: Alice gets resources 0 and 1 (utility=8) and George gets resources 2 and 3 (utility=9).
@@ -58,9 +64,14 @@ problem.solve()
 print("\n## Example 3: leximax allocation\n")
 utility_Alice = a[0] * 5 + a[1] * 2 + a[2] * 0
 utility_George = (1 - a[0]) * 2 + (1 - a[1]) * 4 + (1 - a[2]) * 9
-problem = Problem(objective=Leximax([utility_Alice, utility_George]), constraints=feasible_allocation)
+problem = Problem(
+    objective=Leximax([utility_Alice, utility_George]),
+    constraints=feasible_allocation,
+)
 problem.solve()
-print(f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}.")
+print(
+    f"Alice's utility is {utility_Alice.value}, George's utility is {utility_George.value}."
+)
 # The utility vector is now ~(2,2). It minimizes the largest value.
 print(f"The allocation is: {a.value}.")
 # It is ~[0, 1, 1, 0]: Alice gets resources 1 and 2 (utility=2) and George gets resources 0 and 3 (utility=2 too).

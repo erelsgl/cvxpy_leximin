@@ -1,5 +1,5 @@
 """
-Test that the new Problem class handles the Leximin objective.
+Test that the new Problem class handles the Leximin and Leximax objectives.
 """
 
 from cvxpy import Variable
