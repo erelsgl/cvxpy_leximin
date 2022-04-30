@@ -25,7 +25,7 @@ EXAMPLE 2: leximax chores allocation. There are four chores to allocate among tw
 >>> objective = Leximax([utility_Alice, utility_George])
 >>> problem = Problem(objective, constraints=feasible_allocation)
 >>> problem.solve()
-[2.002, 1.9992]
+[2.0, 2.0]
 >>> round(utility_Alice.value), round(utility_George.value)
 (2, 2)
 >>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
@@ -50,8 +50,7 @@ from copy import deepcopy
 LOGGER = logging.getLogger("__cvxpy_leximin__")
 
 
-def __new__init(
-    self,
+def __new__init(self,
     objective: Union[Minimize, Maximize, Leximin, Leximax],
     constraints: Optional[List[Constraint]] = None,
     upper_tolerance: float = 1.01,  # for comparing floating-point numbers
@@ -61,9 +60,7 @@ def __new__init(
         constraints = []
     # Check that objective is Minimize or Maximize.
     if not isinstance(objective, (Minimize, Maximize, Leximin, Leximax)):
-        raise error.DCPError(
-            "Problem objective must be Minimize, Maximize, Leximin or Leximax."
-        )
+        raise error.DCPError("Problem objective must be Minimize, Maximize, Leximin or Leximax.")
     # Constraints and objective are immutable.
     self._objective = objective
     self._constraints = [
@@ -147,10 +144,7 @@ def _solve_leximin(self, *args, **kwargs):
     map_saturated_objective_to_saturated_value = num_of_objectives * [None]
 
     while True:
-        LOGGER.info(
-            "Saturated values: %s.",
-            map_saturated_objective_to_saturated_value,
-        )
+        LOGGER.info("Saturated values: %s.",map_saturated_objective_to_saturated_value)
         minimum_value_for_free_objectives = cvxpy.Variable()
         inequalities_for_free_objectives = [
             sub_objectives[i] >= minimum_value_for_free_objectives
@@ -158,33 +152,20 @@ def _solve_leximin(self, *args, **kwargs):
         ]
         inequalities_for_saturated_objectives = [
             (sub_objectives[i] >= value)
-            for i, value in enumerate(
-                map_saturated_objective_to_saturated_value
-            )
+            for i, value in enumerate(map_saturated_objective_to_saturated_value)
             if value is not None
         ]
 
         sub_problem = cvxpy.Problem(
             objective=cvxpy.Maximize(minimum_value_for_free_objectives),
-            constraints=constraints
-            + inequalities_for_saturated_objectives
-            + inequalities_for_free_objectives,
+            constraints=constraints + inequalities_for_saturated_objectives + inequalities_for_free_objectives,
         )
         if not self._solve_sub_problem(sub_problem, *args, **kwargs):
             return
 
-        max_min_value_for_free_objectives = (
-            minimum_value_for_free_objectives.value.item()
-        )
-
-        values_in_max_min_allocation = [
-            objective.value for objective in sub_objectives
-        ]
-        LOGGER.info(
-            "  max min value: %g, value-profile: %s",
-            max_min_value_for_free_objectives,
-            values_in_max_min_allocation,
-        )
+        max_min_value_for_free_objectives = minimum_value_for_free_objectives.value.item()
+        values_in_max_min_allocation = [objective.value for objective in sub_objectives]
+        LOGGER.info("  max min value: %g, value-profile: %s", max_min_value_for_free_objectives, values_in_max_min_allocation)
         max_min_value_upper_threshold = (
             self.upper_tolerance * max_min_value_for_free_objectives
             if max_min_value_for_free_objectives > 0
@@ -197,66 +178,41 @@ def _solve_leximin(self, *args, **kwargs):
         )
 
         for ifree in free_objectives:  # Find whether i's value can be improved
-            if (
-                values_in_max_min_allocation[ifree]
-                > max_min_value_upper_threshold
-            ):
-                LOGGER.info(
-                    "  Max value of objective #%d is %g, which is above %g, so objective remains free.",
-                    ifree,
-                    values_in_max_min_allocation[ifree],
-                    max_min_value_upper_threshold,
-                )
+            if (values_in_max_min_allocation[ifree] > max_min_value_upper_threshold):
+                LOGGER.info("  Max value of objective #%d is %g, which is above %g, so objective remains free.", ifree, values_in_max_min_allocation[ifree], max_min_value_upper_threshold)
                 continue
             inequalities_for_other_free_objectives = [
                 sub_objectives[i] >= max_min_value_lower_threshold
                 for i in free_objectives
                 if i != ifree
             ]
-
-            sub_problem = cvxpy.Problem(
+            sub_problem_for_ifree = cvxpy.Problem(
                 objective=cvxpy.Maximize(sub_objectives[ifree]),
-                constraints=constraints
-                + inequalities_for_saturated_objectives
-                + inequalities_for_other_free_objectives,
+                constraints=constraints + inequalities_for_saturated_objectives + inequalities_for_other_free_objectives,
             )
-            if not self._solve_sub_problem(sub_problem, *args, **kwargs):
+            if not self._solve_sub_problem(sub_problem_for_ifree, *args, **kwargs):
                 return
             max_value_for_ifree = sub_objectives[ifree].value.item()
 
             if max_value_for_ifree > max_min_value_upper_threshold:
-                LOGGER.info(
-                    "  Max value of objective #%d is %g, which is above %g, so objective remains free.",
-                    ifree,
-                    max_value_for_ifree,
-                    max_min_value_upper_threshold,
-                )
+                LOGGER.info("  Max value of objective #%d is %g, which is above %g, so objective remains free.", ifree, max_value_for_ifree, max_min_value_upper_threshold)
                 continue
             else:
-                LOGGER.info(
-                    "  Max value of objective #%d is %g, which is below %g, so objective becomes saturated.",
-                    ifree,
-                    max_value_for_ifree,
-                    max_min_value_upper_threshold,
-                )
-                map_saturated_objective_to_saturated_value[
-                    ifree
-                ] = max_min_value_for_free_objectives
+                LOGGER.info("  Max value of objective #%d is %g, which is below %g, so objective becomes saturated.", ifree, max_value_for_ifree, max_min_value_upper_threshold)
+                map_saturated_objective_to_saturated_value[ifree] = max_min_value_for_free_objectives
 
         new_free_agents = [
-            i
-            for i in free_objectives
+            i for i in free_objectives
             if map_saturated_objective_to_saturated_value[i] is None
         ]
         if len(new_free_agents) == len(free_objectives):
-            raise ValueError(
-                "No new saturated objectives - this contradicts Willson's theorem! Are you sure the domain is convex?"
-            )
+            raise ValueError("No new saturated objectives - this contradicts Willson's theorem! Are you sure the domain is convex?")
         elif len(new_free_agents) == 0:
-            LOGGER.info(
-                "All objectives are saturated -- values are %s.",
-                map_saturated_objective_to_saturated_value,
-            )
+            LOGGER.info("All objectives are saturated -- values are %s.", map_saturated_objective_to_saturated_value)
+            if not self._solve_sub_problem(sub_problem, *args, **kwargs):
+                return
+            LOGGER.info("Final objective values: %s", [o.value for o in sub_objectives])
+
             self._status = sub_problem.status
             self._solution = sub_problem.solution
 
