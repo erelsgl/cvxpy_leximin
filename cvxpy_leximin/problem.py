@@ -117,12 +117,187 @@ def _solve_sub_problem(self, sub_problem: cvxpy.Problem, *args, **kwargs):
 Problem._solve_sub_problem = _solve_sub_problem
 
 
-def _solve_leximin_ogry(self, big_M=1e5, *args, **kwargs):
+def _solve_leximin_will(self, *args, **kwargs):
+    """
+    Find a leximin-optimal vector of utilities, subject to the given constraints.
+
+    The algorithm is based on:
+    > [Stephen J. Willson](https://faculty.sites.iastate.edu/swillson/),
+    > "Fair Division Using Linear Programming" (1998).
+    > Part 6, pages 20--27.
+
+    I am grateful to Sylvain Bouveret for his help with the algorithm. All remaining errors and bugs are my own.
+    """
+    if type(self.objective) == Leximax:
+        sub_objectives = [-arg for arg in self.objective.args]
+    else:  # Leximin
+        sub_objectives = self.objective.args
+
+    constraints = self.constraints
+    num_of_objectives = len(sub_objectives)
+
+    # During the algorithm, the objectives are partitioned into "free" and "saturated".
+    # * "free" objectives are those that can potentially be made higher, without harming the smaller objectives.
+    # * "saturated" objectives are those that have already attained their highest possible value in the leximin solution.
+    # Initially, all objectives are free, and no objective is saturated:
+    free_objectives = list(range(num_of_objectives))
+    map_saturated_objective_to_saturated_value = num_of_objectives * [None]
+
+    while True:
+        LOGGER.info("Saturated values: %s.",map_saturated_objective_to_saturated_value)
+        minimum_value_for_free_objectives = cvxpy.Variable()
+        inequalities_for_free_objectives = [
+            sub_objectives[i] >= minimum_value_for_free_objectives
+            for i in free_objectives
+        ]
+        inequalities_for_saturated_objectives = [
+            (sub_objectives[i] >= value)
+            for i, value in enumerate(map_saturated_objective_to_saturated_value)
+            if value is not None
+        ]
+
+        sub_problem = cvxpy.Problem(
+            objective=cvxpy.Maximize(minimum_value_for_free_objectives),
+            constraints=constraints + inequalities_for_saturated_objectives + inequalities_for_free_objectives,
+        )
+        if not self._solve_sub_problem(sub_problem, *args, **kwargs):
+            return
+
+        max_min_value_for_free_objectives = minimum_value_for_free_objectives.value.item()
+        values_in_max_min_allocation = [objective.value for objective in sub_objectives]
+        LOGGER.info("  max min value: %g, value-profile: %s", max_min_value_for_free_objectives, values_in_max_min_allocation)
+        max_min_value_upper_threshold = (
+            self.upper_tolerance * max_min_value_for_free_objectives
+            if max_min_value_for_free_objectives > 0
+            else (2 - self.upper_tolerance) * max_min_value_for_free_objectives
+        )
+        max_min_value_lower_threshold = (
+            self.lower_tolerance * max_min_value_for_free_objectives
+            if max_min_value_for_free_objectives > 0
+            else (2 - self.lower_tolerance) * max_min_value_for_free_objectives
+        )
+
+        for ifree in free_objectives:  # Find whether i's value can be improved
+            if (values_in_max_min_allocation[ifree] > max_min_value_upper_threshold):
+                LOGGER.info("  Max value of objective #%d is %g, which is above %g, so objective remains free.", ifree, values_in_max_min_allocation[ifree], max_min_value_upper_threshold)
+                continue
+            inequalities_for_other_free_objectives = [
+                sub_objectives[i] >= max_min_value_lower_threshold
+                for i in free_objectives
+                if i != ifree
+            ]
+            sub_problem_for_ifree = cvxpy.Problem(
+                objective=cvxpy.Maximize(sub_objectives[ifree]),
+                constraints=constraints + inequalities_for_saturated_objectives + inequalities_for_other_free_objectives,
+            )
+            if not self._solve_sub_problem(sub_problem_for_ifree, *args, **kwargs):
+                return
+            max_value_for_ifree = sub_objectives[ifree].value.item()
+
+            if max_value_for_ifree > max_min_value_upper_threshold:
+                LOGGER.info("  Max value of objective #%d is %g, which is above %g, so objective remains free.", ifree, max_value_for_ifree, max_min_value_upper_threshold)
+                continue
+            else:
+                LOGGER.info("  Max value of objective #%d is %g, which is below %g, so objective becomes saturated.", ifree, max_value_for_ifree, max_min_value_upper_threshold)
+                map_saturated_objective_to_saturated_value[ifree] = max_min_value_for_free_objectives
+
+        new_free_agents = [
+            i for i in free_objectives
+            if map_saturated_objective_to_saturated_value[i] is None
+        ]
+        if len(new_free_agents) == len(free_objectives):
+            raise ValueError("No new saturated objectives - this contradicts Willson's theorem! Are you sure the domain is convex?")
+        elif len(new_free_agents) == 0:
+            LOGGER.info("All objectives are saturated -- values are %s.", map_saturated_objective_to_saturated_value)
+            if not self._solve_sub_problem(sub_problem, *args, **kwargs):
+                return
+            LOGGER.info("Final objective values: %s", [o.value for o in sub_objectives])
+
+            self._status = sub_problem.status
+            self._solution = sub_problem.solution
+
+            if type(self.objective) == Leximax:
+                for i in range(num_of_objectives):
+                    self.objective.args[i] = -sub_objectives[i]
+            self._value = self.objective.value
+            return self.value
+
+        else:
+            free_objectives = new_free_agents
+            continue
+
+
+def _solve_leximin_ogry_relax(self, *args, **kwargs):
     """
     Solves a Leximin/Leximax problem using the Ordered Outcomes Algorithm from Ogryczak & Śliwiński (2006).
 
     This implementation transforms the lexicographic min-max problem into a standard lexicographic
-    minimization with predefined linear criteria, avoiding integer variables. 
+    minimization with predefined linear criteria, avoiding integer variables.
+    It creates auxiliary variables t_k and d_kj, and builds lexicographic objectives using the formula:
+    lex min [t₁ + Σ d₁ⱼ, 2t₂ + Σ d₂ⱼ, ..., mt_m + Σ d_mⱼ]
+
+    The method solves a sequence of optimization problems, each time adding constraints to
+    maintain previously found optimal values.
+
+    Reference:
+    Ogryczak, W., Śliwiński, T. (2006). On Direct Methods for Lexicographic Min-Max Optimization.
+    In: Gavrilova, M.L., et al. (eds) Computational Science and Its Applications - ICCSA 2006.
+
+    Returns:
+        List: Optimal values for each expression in the objective.
+    """
+    # Flip objectives if Leximin
+    if type(self.objective) == Leximin:
+        sub_objectives = [-arg for arg in self.objective.args]
+        is_leximin = True
+    else:
+        sub_objectives = self.objective.args
+        is_leximin = False
+
+    constraints = list(self.constraints)
+    num_of_objectives = len(sub_objectives)
+
+    # Define auxiliary variables t_k and d_kj
+    t = cvxpy.Variable(num_of_objectives)
+    d = cvxpy.Variable((num_of_objectives, num_of_objectives))
+
+    # Constraints from Theorem 1
+    for k in range(num_of_objectives):
+        for j in range(num_of_objectives):
+            constraints.append(t[k] + d[k, j] >= sub_objectives[j])
+            constraints.append(d[k, j] >= 0)
+
+    # Lexicographic optimization loop
+    objectives = []
+    for k in range(num_of_objectives):
+        lex_obj = cvxpy.Minimize((k + 1) * t[k] + cvxpy.sum(d[k, :]))
+        problem = cvxpy.Problem(lex_obj, constraints + objectives)
+        problem.solve()
+
+        if problem.status != cvxpy.OPTIMAL:
+            raise RuntimeError(f"Subproblem {k} not solved to optimality.")
+
+        # Fix the current level's value for the next level
+        fixed_value = scalar_value((k + 1) * t[k].value + sum(d[k, j].value for j in range(num_of_objectives)))
+        objectives.append((k + 1) * t[k] + cvxpy.sum(d[k, :]) == fixed_value)
+
+    # Extract results
+    self._status = problem.status
+    if is_leximin:
+        self._value = [-scalar_value(t[i].value) for i in range(num_of_objectives)]
+    else:
+        self._value = [scalar_value(t[i].value) for i in range(num_of_objectives)]
+    self._solution = problem.solution
+
+    return self._value
+
+
+def _solve_leximin_ogry_integer_variables(self, big_M=1e5, *args, **kwargs):
+    """
+    Solves a Leximin/Leximax problem using the Ordered Outcomes Algorithm from Ogryczak & Śliwiński (2006).
+
+    This implementation transforms the lexicographic min-max problem into a standard lexicographic
+    minimization with predefined linear criteria, avoiding integer variables.
     It creates auxiliary variables t_k and d_kj, and builds lexicographic objectives using the formula:
     lex min [t₁ + Σ d₁ⱼ, 2t₂ + Σ d₂ⱼ, ..., mt_m + Σ d_mⱼ]
 
@@ -173,122 +348,12 @@ def _solve_leximin_ogry(self, big_M=1e5, *args, **kwargs):
     return self._value
 
 
-# def _solve_leximin(self, *args, **kwargs):
-#     """
-#     Find a leximin-optimal vector of utilities, subject to the given constraints.
-#
-#     The algorithm is based on:
-#     > [Stephen J. Willson](https://faculty.sites.iastate.edu/swillson/),
-#     > "Fair Division Using Linear Programming" (1998).
-#     > Part 6, pages 20--27.
-#
-#     I am grateful to Sylvain Bouveret for his help with the algorithm. All remaining errors and bugs are my own.
-#     """
-#     if type(self.objective) == Leximax:
-#         sub_objectives = [-arg for arg in self.objective.args]
-#     else:  # Leximin
-#         sub_objectives = self.objective.args
-#
-#     constraints = self.constraints
-#     num_of_objectives = len(sub_objectives)
-#
-#     # During the algorithm, the objectives are partitioned into "free" and "saturated".
-#     # * "free" objectives are those that can potentially be made higher, without harming the smaller objectives.
-#     # * "saturated" objectives are those that have already attained their highest possible value in the leximin solution.
-#     # Initially, all objectives are free, and no objective is saturated:
-#     free_objectives = list(range(num_of_objectives))
-#     map_saturated_objective_to_saturated_value = num_of_objectives * [None]
-#
-#     while True:
-#         LOGGER.info("Saturated values: %s.",map_saturated_objective_to_saturated_value)
-#         minimum_value_for_free_objectives = cvxpy.Variable()
-#         inequalities_for_free_objectives = [
-#             sub_objectives[i] >= minimum_value_for_free_objectives
-#             for i in free_objectives
-#         ]
-#         inequalities_for_saturated_objectives = [
-#             (sub_objectives[i] >= value)
-#             for i, value in enumerate(map_saturated_objective_to_saturated_value)
-#             if value is not None
-#         ]
-#
-#         sub_problem = cvxpy.Problem(
-#             objective=cvxpy.Maximize(minimum_value_for_free_objectives),
-#             constraints=constraints + inequalities_for_saturated_objectives + inequalities_for_free_objectives,
-#         )
-#         if not self._solve_sub_problem(sub_problem, *args, **kwargs):
-#             return
-#
-#         max_min_value_for_free_objectives = minimum_value_for_free_objectives.value.item()
-#         values_in_max_min_allocation = [objective.value for objective in sub_objectives]
-#         LOGGER.info("  max min value: %g, value-profile: %s", max_min_value_for_free_objectives, values_in_max_min_allocation)
-#         max_min_value_upper_threshold = (
-#             self.upper_tolerance * max_min_value_for_free_objectives
-#             if max_min_value_for_free_objectives > 0
-#             else (2 - self.upper_tolerance) * max_min_value_for_free_objectives
-#         )
-#         max_min_value_lower_threshold = (
-#             self.lower_tolerance * max_min_value_for_free_objectives
-#             if max_min_value_for_free_objectives > 0
-#             else (2 - self.lower_tolerance) * max_min_value_for_free_objectives
-#         )
-#
-#         for ifree in free_objectives:  # Find whether i's value can be improved
-#             if (values_in_max_min_allocation[ifree] > max_min_value_upper_threshold):
-#                 LOGGER.info("  Max value of objective #%d is %g, which is above %g, so objective remains free.", ifree, values_in_max_min_allocation[ifree], max_min_value_upper_threshold)
-#                 continue
-#             inequalities_for_other_free_objectives = [
-#                 sub_objectives[i] >= max_min_value_lower_threshold
-#                 for i in free_objectives
-#                 if i != ifree
-#             ]
-#             sub_problem_for_ifree = cvxpy.Problem(
-#                 objective=cvxpy.Maximize(sub_objectives[ifree]),
-#                 constraints=constraints + inequalities_for_saturated_objectives + inequalities_for_other_free_objectives,
-#             )
-#             if not self._solve_sub_problem(sub_problem_for_ifree, *args, **kwargs):
-#                 return
-#             max_value_for_ifree = sub_objectives[ifree].value.item()
-#
-#             if max_value_for_ifree > max_min_value_upper_threshold:
-#                 LOGGER.info("  Max value of objective #%d is %g, which is above %g, so objective remains free.", ifree, max_value_for_ifree, max_min_value_upper_threshold)
-#                 continue
-#             else:
-#                 LOGGER.info("  Max value of objective #%d is %g, which is below %g, so objective becomes saturated.", ifree, max_value_for_ifree, max_min_value_upper_threshold)
-#                 map_saturated_objective_to_saturated_value[ifree] = max_min_value_for_free_objectives
-#
-#         new_free_agents = [
-#             i for i in free_objectives
-#             if map_saturated_objective_to_saturated_value[i] is None
-#         ]
-#         if len(new_free_agents) == len(free_objectives):
-#             raise ValueError("No new saturated objectives - this contradicts Willson's theorem! Are you sure the domain is convex?")
-#         elif len(new_free_agents) == 0:
-#             LOGGER.info("All objectives are saturated -- values are %s.", map_saturated_objective_to_saturated_value)
-#             if not self._solve_sub_problem(sub_problem, *args, **kwargs):
-#                 return
-#             LOGGER.info("Final objective values: %s", [o.value for o in sub_objectives])
-#
-#             self._status = sub_problem.status
-#             self._solution = sub_problem.solution
-#
-#             if type(self.objective) == Leximax:
-#                 for i in range(num_of_objectives):
-#                     self.objective.args[i] = -sub_objectives[i]
-#             self._value = self.objective.value
-#             return self.value
-#
-#         else:
-#             free_objectives = new_free_agents
-#             continue
-
-
-Problem._solve_leximin_ogry = _solve_leximin_ogry
+Problem._solve_leximin = _solve_leximin_ogry_relax
 
 
 def __new__solve(self, *args, **kwargs):
     if type(self.objective) == Leximin or type(self.objective) == Leximax:
-        return self._solve_leximin_ogry(*args, **kwargs)
+        return self._solve_leximin(*args, **kwargs)
     else:  # Copied from cvxpy.problems.problem.Problem.solve
         func_name = kwargs.pop("method", None)
         if func_name is not None:

@@ -1,0 +1,10 @@
+objective_type,resources,agents,method,time,success
+leximin,10,3,willson,0.055584112803141274,True
+leximin,10,3,ogry_relax,0.039390881856282554,True
+leximin,10,3,ogry_integer,0.052436272303263344,True
+leximin,20,6,willson,0.28743306795756024,True
+leximin,20,6,ogry_relax,0.31749669710795086,True
+leximin,20,6,ogry_integer,0.3329312006632487,True
+leximin,30,10,willson,1.0922173659006755,True
+leximin,30,10,ogry_relax,1.3927239576975505,True
+leximin,30,10,ogry_integer,1.4312853813171387,True
