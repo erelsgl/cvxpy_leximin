@@ -336,6 +336,10 @@ def _solve_leximin_ogry_integer_variables(self, big_M=1e5, *args, **kwargs):
         obj = cvxpy.Minimize(t[k])
         sub_problem = cvxpy.Problem(obj, constraints + objectives)
         sub_problem.solve()
+
+        if sub_problem.status != cvxpy.OPTIMAL:
+            raise RuntimeError(f"Subproblem {k} not solved to optimality.")
+
         self._status = sub_problem.status
         # Fix the previous value for next level of lex order
         objectives.append(t[k] == t[k].value)
@@ -348,21 +352,93 @@ def _solve_leximin_ogry_integer_variables(self, big_M=1e5, *args, **kwargs):
     return self._value
 
 
+def _solve_leximin_ordered_values(self, *args, **kwargs):
+    """
+    Solve the Leximin or Leximax problem using the Ordered Values algorithm
+    (Theorem 3, formulation (7)) from Ogryczak & Śliwiński (2006).
+
+    Parameters:
+        outcome_levels (List[float], optional): sorted list in descending order of all possible distinct outcome values.
+            If None, it must be known or estimated elsewhere in the problem.
+
+    Returns:
+        List[float]: The optimal lexicographic objective values.
+    """
+    outcome_levels = kwargs.pop("outcome_levels", None)
+    if outcome_levels is None:
+        raise ValueError("The list of possible outcome values (outcome_levels) must be provided.")
+
+    if type(self.objective) == Leximin:
+        sub_objectives = [-arg for arg in self.objective.args]
+        is_leximin = True
+    else:
+        sub_objectives = self.objective.args
+        is_leximin = False
+
+    constraints = list(self.constraints)
+    num_of_objectives = len(sub_objectives)
+
+    r = len(outcome_levels)
+
+    # Variables: h_{kj} for k = 2..r and j = 1..num_of_objectives
+    h = {
+        (k, j): cvxpy.Variable(name=f"h_{k}_{j}", nonneg=True)
+        for k in range(1, r)
+        for j in range(num_of_objectives)
+    }
+
+    # Constraints for h_{kj} ≥ f_j(x) - v_k
+    for k in range(1, r):
+        v_k = outcome_levels[k]
+        for j in range(num_of_objectives):
+            constraints.append(h[(k, j)] >= sub_objectives[j] - v_k)
+
+    # Lexicographic minimization: minimize sum_j h_{kj} in order of k
+    objectives = []
+    for k in range(1, r):
+        obj_k = cvxpy.Minimize(cvxpy.sum([h[(k, j)] for j in range(num_of_objectives)]))
+        problem_k = cvxpy.Problem(obj_k, constraints + objectives)
+        problem_k.solve()
+
+        if problem_k.status != cvxpy.OPTIMAL:
+            raise RuntimeError(f"Subproblem {k} not solved to optimality.")
+
+        # Fix the value for the current step
+        fixed_val = scalar_value(sum(h[(k, j)].value for j in range(num_of_objectives)))
+        objectives.append(cvxpy.sum([h[(k, j)] for j in range(num_of_objectives)]) == fixed_val)
+
+    # Return final values (one for each objective level)
+    lex_values = self.objective.value
+
+    if is_leximin:
+        lex_values = [scalar_value(-val) for val in lex_values]
+
+    self._value = lex_values
+    self._status = problem_k.status
+    self._solution = problem_k.solution
+
+    return self._value
+
+
 Problem._solve_leximin = _solve_leximin_ogry_relax
 
 
 def __new__solve(self, *args, **kwargs):
-    if type(self.objective) == Leximin or type(self.objective) == Leximax:
-        return self._solve_leximin(*args, **kwargs)
-    else:  # Copied from cvxpy.problems.problem.Problem.solve
-        func_name = kwargs.pop("method", None)
-        if func_name is not None:
-            solve_func = Problem.REGISTERED_SOLVE_METHODS[func_name]
+    func_name = kwargs.pop("method", None)
+    if func_name is not None:
+        solve_func = Problem.REGISTERED_SOLVE_METHODS[func_name]
+    else:
+        if type(self.objective) == Leximin or type(self.objective) == Leximax:
+            solve_func = self._solve_leximin
         else:
             solve_func = Problem._solve
-        return solve_func(self, *args, **kwargs)
+    return solve_func(self, *args, **kwargs)
 
 
+Problem.register_solve("willson", _solve_leximin_will)
+Problem.register_solve("ogry_relax", _solve_leximin_ogry_relax)
+Problem.register_solve("ogry_integer", _solve_leximin_ogry_integer_variables)
+Problem.register_solve("ordered_values", _solve_leximin_ordered_values)
 Problem.solve = __new__solve
 
 if __name__ == "__main__":
