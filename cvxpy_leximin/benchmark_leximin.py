@@ -13,12 +13,17 @@ performance.
 """
 
 import time
+
+import cvxpy
 import numpy as np
 import cvxpy as cp
 import pandas as pd
 import matplotlib.pyplot as plt
 import logging
 from typing import Tuple, List
+
+from cvxpy import Variable, Problem
+from scipy.spatial.distance import cityblock
 
 # Import necessary functions from the module
 from cvxpy_leximin.objective import Leximin, Leximax
@@ -29,47 +34,6 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-# Store the original solving method
-original_solve_method = None
-
-
-def save_original_method():
-    """Save the original _solve_leximin method to restore it later"""
-    global original_solve_method
-    from cvxpy.problems.problem import Problem
-    original_solve_method = Problem._solve_leximin
-
-
-def restore_original_method():
-    """Restore the original _solve_leximin method"""
-    from cvxpy.problems.problem import Problem
-    if original_solve_method is not None:
-        Problem._solve_leximin = original_solve_method
-
-
-def set_solve_method(method_name: str):
-    """Set the solving method to use"""
-    from cvxpy.problems.problem import Problem
-
-    method_mapping = {
-        "willson": "_solve_leximin_will",
-        "ogry_relax": "_solve_leximin_ogry_relax",
-        "ogry_integer": "_solve_leximin_ogry_integer_variables"
-    }
-
-    if method_name not in method_mapping:
-        raise ValueError(f"Unknown method: {method_name}")
-
-    from problem import _solve_leximin_will, _solve_leximin_ogry_relax, _solve_leximin_ogry_integer_variables
-
-    method_funcs = {
-        "willson": _solve_leximin_will,
-        "ogry_relax": _solve_leximin_ogry_relax,
-        "ogry_integer": _solve_leximin_ogry_integer_variables
-    }
-
-    Problem._solve_leximin = method_funcs[method_name]
 
 
 def create_resource_allocation_problem(n_resources: int, n_agents: int,
@@ -119,173 +83,365 @@ def create_resource_allocation_problem(n_resources: int, n_agents: int,
     return problem, utilities
 
 
-def benchmark_methods(sizes, methods, objective_types=None, repeats=3):
-    """Benchmark the different methods on various problem instances.
+def create_clients_facility_locations(size, p):
+    # Fixed client coordinates on 2D grid 
+    np.random.seed(42)
+    possible_coords = [(x, y) for x in range(0, 101, 5) for y in range(0, 101, 5)]
+    
+    # Choose random indices instead of trying to choose from the coordinates directly
+    indices = np.random.choice(len(possible_coords), size=size, replace=False)
+    selected_coords = [possible_coords[i] for i in indices]
+    coords = np.array(sorted(selected_coords))
+
+    # Compute Manhattan distances
+    d = np.zeros((size, size))
+    for i in range(size):
+        for j in range(size):
+            d[i, j] = cityblock(coords[i], coords[j])
+
+    # Decision variables
+    x = Variable(size, boolean=True)  # facility open
+    x_prime = Variable((size, size), boolean=True)  # assignment
+
+    # Constraints
+    constraints = []
+
+    # Each client must be assigned to one facility
+    for j in range(size):
+        constraints.append(cvxpy.sum(x_prime[:, j]) == 1)
+
+    # Only assign to open facilities
+    for i in range(size):
+        for j in range(size):
+            constraints.append(x_prime[i, j] <= x[i])
+
+    # Limit number of facilities
+    constraints.append(cvxpy.sum(x) == p)
+
+    # Client outcomes: distance to assigned facility
+    outcomes = []
+    for j in range(size):
+        outcomes.append(cvxpy.sum([d[i, j] * x_prime[i, j] for i in range(size)]))
+
+    # Create problem
+    objective = Leximax(outcomes)
+    problem = Problem(objective, constraints)
+
+    # Estimate possible outcome values
+    possible_values = sorted(set(d.flatten()), reverse=True)
+
+    return problem, possible_values, outcomes
+
+
+def benchmark_methods(sizes, methods, objective_types=None, facilities=None, repeats=1):
+    """
+    Run benchmark tests on a set of methods for solving client-facility location problems,
+    measuring performance and consistency under various configurations.
+
+    Tests multiple methods on client-facility location problems with varying
+    sizes, facility counts, and objective types. Measures execution time
+    and validates the consistency of computed solutions for each method. The
+    results include details about the performance and success of each method.
 
     Parameters:
-        sizes: List of resource counts to test
-        methods: List of methods to test
-        objective_types: List of objective types to test
-        repeats: Number of times to repeat each test for robust timing
+    sizes : list[int]
+        A list of integers representing problem sizes (number of clients or resources).
+    methods : list[str]
+        A list of method names to be benchmarked.
+    objective_types : list[str], optional
+        A list of objective type names to be tested. Defaults to ["leximax"].
+    facilities : list[int], optional
+        A list of integers representing the number of facilities available for allocation.
+        Defaults to None.
+    repeats : int, optional
+        The number of times each method is repeated for measuring performance. Defaults to 3.
 
     Returns:
-        results: DataFrame with benchmark results
+    pandas.DataFrame
+        A DataFrame containing the benchmarking results with columns for objective type,
+        problem size, number of facilities, method name, average execution time, and
+        success status.
+
+    Raises:
+    KeyError
+        If a required key is missing from the results or during validation.
+    TypeError
+        If an invalid type is encountered during solution comparison.
+    ValueError
+        If an error occurs during result rounding or comparison of solutions.
     """
     # Save the original method to restore later
     if objective_types is None:
         objective_types = ["leximin"]
-    save_original_method()
 
+    if facilities is None:
+        facilities = [2]
     results = []
 
     for objective_type in objective_types:
         for size in sizes:
-            logger.info(f"Testing {objective_type} with {size} resources...")
-
-            # For resource allocation, use a fixed ratio of resources to agents
-            n_agents = max(2, size // 3)
-
-            # Create the problem once
-            problem, _ = create_resource_allocation_problem(size, n_agents, objective_type=objective_type)
-
-            # Store the solutions for each method
-            solutions = {}
-
-            # Test each method
-            for method_name in methods:
-                logger.info(f"  Using {method_name} method...")
-
-                # Set the method to use
-                set_solve_method(method_name)
-
-                # Time the method
-                times = []
-                success = False
-                solution = None
-
-                for i in range(repeats):
-                    start_time = time.time()
+            for facility in facilities:
+                logger.info(f"Testing {objective_type} with {size} resources with {facility} facilities...")
+    
+                problem, outcome_levels, utilities = create_clients_facility_locations(size, facility)
+    
+                # Store the solutions for each method
+                solutions = {}
+    
+                # Test each method
+                for method_name in methods:
+                    logger.info(f"  Using {method_name} method...")
+    
+                    # Time the method
+                    times = []
+                    success = False
+                    solution = None
+    
+                    for i in range(repeats):
+                        start_time = time.time()
+                        try:
+                            if method_name == "ordered_values":
+                                solution = problem.solve(method=method_name, outcome_levels=outcome_levels)
+                            else:
+                                solution = problem.solve(method=method_name)
+                            success = True
+                            elapsed = time.time() - start_time
+                            times.append(elapsed)
+                            logger.info(f"    Run {i + 1}/{repeats}: {elapsed:.3f} seconds")
+                        except Exception as e:
+                            logger.error(f"    Error with {method_name} on {objective_type} size {size} facility {facility}: {e}")
+                            elapsed = float('inf')
+                            times.append(elapsed)
+    
+                    # Store the solution and timing results
+                    solutions[method_name] = solution
+                    avg_time = np.mean(times) if times else float('inf')
+    
+                    # Add the result
+                    results.append({
+                        "objective_type": objective_type,
+                        "n": size,
+                        "p": facility,
+                        "method": method_name,
+                        "time": avg_time,
+                        "success": success
+                    })
+    
+                # Verify that all methods produce the same result
+                if all(success for _, success in [(m, solutions[m] is not None) for m in methods]):
+                    # Convert all solutions to rounded values for comparison
                     try:
-                        solution = problem.solve()
-                        success = True
-                        elapsed = time.time() - start_time
-                        times.append(elapsed)
-                        logger.info(f"    Run {i + 1}/{repeats}: {elapsed:.3f} seconds")
-                    except Exception as e:
-                        logger.error(f"    Error with {method_name} on {objective_type} size {size}: {e}")
-                        elapsed = float('inf')
-                        times.append(elapsed)
+                        rounded_solutions = {
+                            method: round(float(solution), 6) if not isinstance(solution, (list, np.ndarray))
+                            else [round(float(val), 6) for val in solution]
+                            for method, solution in solutions.items()
+                        }
+    
+                        # Convert lists to tuples for hashability when using set()
+                        hashable_solutions = {
+                            method: tuple(sol) if isinstance(sol, list) else sol
+                            for method, sol in rounded_solutions.items()
+                        }
+    
+                        # Check if solutions are different
+                        unique_solutions = set(map(str, hashable_solutions.values()))
+                        if len(unique_solutions) > 1:
+                            logger.warning(f"Different solutions for {objective_type} with {size} resources:")
+                            logger.warning(f"  {size} resources, {facility} facilities, {objective_type} objective")
 
-                # Store the solution and timing results
-                solutions[method_name] = solution
-                avg_time = np.mean(times) if times else float('inf')
-
-                # Add the result
-                results.append({
-                    "objective_type": objective_type,
-                    "resources": size,
-                    "agents": n_agents,
-                    "method": method_name,
-                    "time": avg_time,
-                    "success": success
-                })
-
-            # Verify that all methods produce the same result
-            if all(success for _, success in [(m, solutions[m] is not None) for m in methods]):
-                # Convert all solutions to rounded values for comparison
-                try:
-                    rounded_solutions = {
-                        method: round(float(solution), 6) if not isinstance(solution, (list, np.ndarray))
-                        else [round(float(val), 6) for val in solution]
-                        for method, solution in solutions.items()
-                    }
-
-                    # Convert lists to tuples for hashability when using set()
-                    hashable_solutions = {
-                        method: tuple(sol) if isinstance(sol, list) else sol
-                        for method, sol in rounded_solutions.items()
-                    }
-
-                    # Check if solutions are different
-                    unique_solutions = set(map(str, hashable_solutions.values()))
-                    if len(unique_solutions) > 1:
-                        logger.warning(f"Different solutions for {objective_type} with {size} resources:")
-                        for method_name, solution in rounded_solutions.items():
-                            logger.warning(f"  {method_name}: {solution}")
-                    else:
-                        logger.info(f"  All methods produced consistent results")
-
-                except (ValueError, TypeError) as e:
-                    logger.error(f"  Error comparing solutions: {e}")
-
-    # Restore the original method
-    restore_original_method()
+                            for method_name, solution in rounded_solutions.items():
+                                logger.warning(f"  {method_name}: {solution}")
+                                logger.warning(f"Sum of the solutions: {sum(solution)}")
+                        else:
+                            logger.info(f"  All methods produced consistent results")
+    
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"  Error comparing solutions: {e}")
 
     # Convert to DataFrame
     return pd.DataFrame(results)
 
 
 def plot_results(results):
-    """Plot the benchmark results."""
+    """Plot the benchmark results with separate subplots for different facility counts."""
     objective_types = sorted(results["objective_type"].unique())
-    fig, axes = plt.subplots(1, len(objective_types), figsize=(12, 6), sharey=True)
+    facilities = sorted(results["p"].unique())
 
-    if len(objective_types) == 1:
-        axes = [axes]
+    # Define method name mapping
+    method_name_mapping = {
+        "ogry_integer": "Ordered Outcomes 1",
+        "ogry_relax": "Ordered Outcomes 2",
+        "ordered_values": "Ordered Values",
+        "willson": "Willson"
+    }
+
+    fig, axes = plt.subplots(len(objective_types), len(facilities),
+                             figsize=(4 * len(facilities), 4 * len(objective_types)),
+                             squeeze=False)
 
     for i, obj_type in enumerate(objective_types):
-        obj_results = results[results["objective_type"] == obj_type]
+        for j, facility_count in enumerate(facilities):
+            ax = axes[i, j]
 
-        for method in sorted(obj_results["method"].unique()):
-            method_results = obj_results[obj_results["method"] == method]
-            method_results = method_results.sort_values("resources")
-            axes[i].plot(method_results["resources"], method_results["time"], 'o-', label=method)
+            # Filter results for this objective type and facility count
+            filtered_results = results[
+                (results["objective_type"] == obj_type) &
+                (results["p"] == facility_count)
+                ]
 
-        axes[i].set_title(f"{obj_type.capitalize()}")
-        axes[i].set_xlabel("Number of Resources")
-        axes[i].set_ylabel("Time (seconds)" if i == 0 else "")
-        axes[i].set_yscale("log")
-        axes[i].grid(True, which="both", linestyle="--", linewidth=0.5)
-        axes[i].legend()
+            # Plot each method
+            for method in sorted(filtered_results["method"].unique()):
+                method_results = filtered_results[filtered_results["method"] == method]
+                method_results = method_results.sort_values("n")
 
-    plt.suptitle("Performance Comparison of Leximin/Leximax Methods")
+                # Only plot if we have successful results
+                successful_results = method_results[method_results["success"] == True]
+                if not successful_results.empty:
+                    # Use mapped name if available, otherwise use original name
+                    display_name = method_name_mapping.get(method, method)
+                    ax.plot(successful_results["n"], successful_results["time"],
+                            'o-', label=display_name, linewidth=2, markersize=6)
+
+            ax.set_title(f"{obj_type.capitalize()}\n{facility_count} facilities")
+            ax.set_xlabel("Number of clients")
+            ax.set_ylabel("Time (seconds)")
+            ax.set_yscale("log")
+            ax.set_ylim(bottom=0, top=1e5/5)
+            ax.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
+            ax.legend()
+
+    plt.suptitle("Performance Comparison of Leximin/Leximax Methods", fontsize=16)
     plt.tight_layout()
-    plt.savefig("leximin_leximax_comparison.png", dpi=300, bbox_inches="tight")
-    logger.info("Plot saved to leximin_leximax_comparison.png")
+    plt.savefig("facilities_comparison.png", dpi=300, bbox_inches="tight")
+    logger.info("Plot saved to facilities_comparison.png")
     plt.close()
+
+
+def plot_results_heatmap(results):
+    """Create heatmap plots showing performance across n and p dimensions."""
+    objective_types = sorted(results["objective_type"].unique())
+    methods = sorted(results["method"].unique())
+    # Define method name mapping
+    method_name_mapping = {
+        "ogry_integer": "Ordered Outcomes 1",
+        "ogry_relax": "Ordered Outcomes 2",
+        "ordered_values": "Ordered Values",
+        "willson": "Willson"
+    }
+    fig, axes = plt.subplots(len(objective_types), len(methods),
+                             figsize=(4 * len(methods), 4 * len(objective_types)),
+                             squeeze=False)
+
+    for i, obj_type in enumerate(objective_types):
+        for j, method in enumerate(methods):
+            ax = axes[i, j]
+
+            # Filter results for this objective type and method
+            filtered_results = results[
+                (results["objective_type"] == obj_type) &
+                (results["method"] == method) &
+                (results["success"] == True)
+                ]
+
+            if not filtered_results.empty:
+                # Create pivot table for heatmap
+                pivot_data = filtered_results.pivot(index="p", columns="n", values="time")
+
+                # Create heatmap
+                im = ax.imshow(pivot_data.values, cmap='YlOrRd', aspect='auto')
+
+                # Set ticks and labels
+                ax.set_xticks(range(len(pivot_data.columns)))
+                ax.set_xticklabels(pivot_data.columns)
+                ax.set_yticks(range(len(pivot_data.index)))
+                ax.set_yticklabels(pivot_data.index)
+
+                # Add colorbar
+                plt.colorbar(im, ax=ax, label="Time (seconds)")
+
+                # Add text annotations
+                for row in range(len(pivot_data.index)):
+                    for col in range(len(pivot_data.columns)):
+                        value = pivot_data.iloc[row, col]
+                        if not np.isnan(value):
+                            ax.text(col, row, f'{value:.3f}',
+                                    ha='center', va='center',
+                                    color='white' if value > pivot_data.values.max() / 2 else 'black')
+
+            ax.set_title(f"{obj_type.capitalize()} - {method_name_mapping[method]}")
+            ax.set_xlabel("Number of clients (n)")
+            ax.set_ylabel("Number of facilities (p)")
+
+    plt.suptitle("Performance Heatmaps: Time vs Problem Size", fontsize=16)
+    plt.tight_layout()
+    plt.savefig("facilities_heatmap.png", dpi=300, bbox_inches="tight")
+    logger.info("Heatmap saved to facilities_heatmap.png")
+    plt.close()
+
+
+def load_and_plot_results(csv_filename="facilities_benchmark.csv"):
+    """Load results from CSV file and generate plots."""
+    try:
+        results = pd.read_csv(csv_filename)
+        logger.info(f"Loaded results from {csv_filename}")
+        logger.info(f"Data shape: {results.shape}")
+        logger.info(f"Columns: {list(results.columns)}")
+
+        # Generate both types of plots
+        # plot_results(results)
+        plot_results_heatmap(results)
+
+        # Print summary statistics
+        logger.info("\nSummary by method:")
+        summary = results.groupby(['objective_type', 'method']).agg({
+            'time': ['mean', 'std', 'min', 'max'],
+            'success': 'sum'
+        }).round(4)
+        logger.info(f"\n{summary}")
+
+        return results
+
+    except FileNotFoundError:
+        logger.error(f"File {csv_filename} not found. Please run the benchmark first.")
+        return None
+    except Exception as e:
+        logger.error(f"Error loading results: {e}")
+        return None
 
 
 def main():
     """Main function to run the benchmark."""
     # Define the methods to test
-    methods = ["willson", "ogry_relax", "ogry_integer"]
+    methods = ["willson", "ogry_relax", "ogry_integer", "ordered_values"]
 
     # Define the objective types to test
     objective_types = ["leximin"]
 
-    # Define the sizes (number of resources) to test
-    sizes = [10, 20, 30]
+    # Define the sizes to test
+    sizes = [10, 25, 40, 55, 70]
+    facilities = [2, 3, 5]
 
     # Run the benchmark
     logger.info("Starting benchmark...")
-    results = benchmark_methods(sizes, methods, objective_types, repeats=3)
+    results = benchmark_methods(sizes, methods, objective_types, facilities=facilities, repeats=1)
 
     # Print the results
     logger.info("\nBenchmark Results:")
     for obj_type in results["objective_type"].unique():
         logger.info(f"\n{obj_type.upper()}:")
         obj_results = results[results["objective_type"] == obj_type]
-        pivot = obj_results.pivot(index="resources", columns="method", values="time")
+        pivot = obj_results.pivot(index=["n", "p"], columns="method", values="time")
         logger.info(f"\n{pivot}")
 
     # Plot the results
     plot_results(results)
 
     # Save the results to CSV
-    csv_filename = "leximin_leximax_benchmark.csv"
+    csv_filename = "facilities_benchmark.csv"
     results.to_csv(csv_filename, index=False)
     logger.info(f"Results saved to {csv_filename}")
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    load_and_plot_results("facilities_benchmark_1.csv")
