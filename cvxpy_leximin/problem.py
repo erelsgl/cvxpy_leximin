@@ -1,6 +1,9 @@
 """
 Extend cvxpy.Problem by adding support to the Leximin and Leximax objectives.
 
+>>> import numpy as np
+>>> np.set_printoptions(legacy="1.25")  # numeric scalars are printed without their type information
+
 EXAMPLE 1:  leximin resource allocation. There are four resources to allocate among two people.
 Alice values the resources at 5, 3, 0, 0.
 George values the resources at 2, 4, 9, 0.
@@ -13,7 +16,7 @@ The variables a[0], a[1], a[2], a[3] denote the fraction of each resource given 
 >>> objective = Leximin([utility_Alice, utility_George])
 >>> problem = Problem(objective, constraints=feasible_allocation)
 >>> problem.solve()
-[np.float64(8.0), np.float64(9.0)]
+[8.0, 9.0]
 >>> round(utility_Alice.value), round(utility_George.value)
 (8, 9)
 >>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
@@ -25,7 +28,7 @@ EXAMPLE 2: leximax chores allocation. There are four chores to allocate among tw
 >>> objective = Leximax([utility_Alice, utility_George])
 >>> problem = Problem(objective, constraints=feasible_allocation)
 >>> problem.solve()
-[np.float64(2.0), np.float64(2.0)]
+[2.0, 2.0]
 >>> round(utility_Alice.value), round(utility_George.value)
 (2, 2)
 >>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
@@ -117,11 +120,11 @@ def _solve_sub_problem(self, sub_problem: cvxpy.Problem, *args, **kwargs):
 Problem._solve_sub_problem = _solve_sub_problem
 
 
-def _solve_leximin_will(self, *args, **kwargs):
+def _solve_leximin_saturation(self, *args, **kwargs):
     """
     Find a leximin-optimal vector of utilities, subject to the given constraints.
 
-    The algorithm is based on:
+    The algorithm is based on the saturation algorithm in:
     > [Stephen J. Willson](https://faculty.sites.iastate.edu/swillson/),
     > "Fair Division Using Linear Programming" (1998).
     > Part 6, pages 20--27.
@@ -227,7 +230,7 @@ def _solve_leximin_will(self, *args, **kwargs):
             continue
 
 
-def _solve_leximin_ogry_relax(self, *args, **kwargs):
+def _solve_leximin_ordered_outcomes(self, *args, **kwargs):
     """
     Solves a Leximin/Leximax problem using the Ordered Outcomes Algorithm from Ogryczak & Śliwiński (2006).
 
@@ -292,7 +295,7 @@ def _solve_leximin_ogry_relax(self, *args, **kwargs):
     return self._value
 
 
-def _solve_leximin_ogry_integer_variables(self, big_M=1e5, *args, **kwargs):
+def _solve_leximin_ordered_outcomes_big_M(self, big_M=1e5, *args, **kwargs):
     """
     Solves a Leximin/Leximax problem using the Ordered Outcomes Algorithm from Ogryczak & Śliwiński (2006).
 
@@ -420,7 +423,7 @@ def _solve_leximin_ordered_values(self, *args, **kwargs):
     return self._value
 
 
-Problem._solve_leximin = _solve_leximin_ogry_relax
+Problem._solve_leximin = _solve_leximin_ordered_outcomes
 
 
 def __new__solve(self, *args, **kwargs):
@@ -435,9 +438,9 @@ def __new__solve(self, *args, **kwargs):
     return solve_func(self, *args, **kwargs)
 
 
-Problem.register_solve("willson", _solve_leximin_will)
-Problem.register_solve("ogry_relax", _solve_leximin_ogry_relax)
-Problem.register_solve("ogry_integer", _solve_leximin_ogry_integer_variables)
+Problem.register_solve("willson", _solve_leximin_saturation)
+Problem.register_solve("ogry_relax", _solve_leximin_ordered_outcomes)
+Problem.register_solve("ogry_integer", _solve_leximin_ordered_outcomes_big_M)
 Problem.register_solve("ordered_values", _solve_leximin_ordered_values)
 Problem.solve = __new__solve
 
@@ -446,6 +449,4 @@ if __name__ == "__main__":
     LOGGER.setLevel(logging.INFO)
 
     import doctest
-
-    (failures, tests) = doctest.testmod(report=True)
-    print("{} failures, {} tests".format(failures, tests))
+    print(doctest.testmod())
