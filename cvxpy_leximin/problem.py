@@ -15,12 +15,15 @@ The variables a[0], a[1], a[2], a[3] denote the fraction of each resource given 
 >>> utility_George   = (1-a[0])*2 + (1-a[1])*4 + (1-a[2])*9
 >>> objective = Leximin([utility_Alice, utility_George])
 >>> problem = Problem(objective, constraints=feasible_allocation)
->>> problem.solve()
+>>> problem.solve(method="ordered_outcomes")
 [8.0, 9.0]
 >>> round(utility_Alice.value), round(utility_George.value)
 (8, 9)
 >>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
 [1, 1, 0, 0]
+>>> problem.solve(method="saturation")
+[8.0, 9.0]
+
 
 EXAMPLE 2: leximax chores allocation. There are four chores to allocate among two people.
 >>> utility_Alice = a[0]*5 + a[1]*2 + a[2]*0
@@ -291,6 +294,7 @@ def _solve_leximin_ordered_outcomes(self, *args, **kwargs):
         # Fix the current level's value for the next level
         # fixed_value = scalar_value((k + 1) * t[k].value + sum(d[k, j].value for j in range(num_of_objectives)))
         fixed_value = scalar_value(sub_problem.value)
+        LOGGER.info("Iteration %s: Fixed value is %s", k, fixed_value)
         objectives_constraints.append((k + 1) * t[k] + cvxpy.sum(d[k, :]) == fixed_value)
 
     # Extract results
