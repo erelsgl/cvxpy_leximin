@@ -7,6 +7,9 @@ See Wikipedia pages: Leximin cake-cutting, Leximin item allocation
 import cvxpy, logging
 from cvxpy_leximin import Problem, Leximin, Leximax, LOGGER
 
+import numpy as np
+np.set_printoptions(legacy="1.25")
+
 print("\n## Example 1")
 # There are four resources to allocate among two people: Alice and George.
 # The variables a[0], a[1], a[2], a[3] denote the fraction of each resource given to Alice:
