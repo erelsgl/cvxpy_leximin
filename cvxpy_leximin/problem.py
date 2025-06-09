@@ -23,6 +23,8 @@ The variables a[0], a[1], a[2], a[3] denote the fraction of each resource given 
 [1, 1, 0, 0]
 >>> problem.solve(method="saturation")
 [8.0, 9.0]
+>>> problem.solve(method="ordered_outcomes_big_M")
+[8.0, 9.0]
 >>> problem.solve(method="ordered_values", outcome_levels=[7,8,9,10])
 [8.0, 9.0]
 
@@ -40,6 +42,8 @@ EXAMPLE 2: leximax chores allocation. There are four chores to allocate among tw
 >>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
 [0, 1, 1, 0]
 >>> problem.solve(method="saturation")
+[2.0, 2.0]
+>>> problem.solve(method="ordered_outcomes_big_M")
 [2.0, 2.0]
 >>> problem.solve(method="ordered_values", outcome_levels=[1,2,3,4])
 [2.0, 2.0]
@@ -138,6 +142,16 @@ def _solve_sub_problem(self, sub_problem: cvxpy.Problem, *args, **kwargs):
 
 Problem._solve_sub_problem = _solve_sub_problem
 
+def leximin_sign(objective):
+    """
+    Return the arithmetic sign of the objective: +1 if it is Leximax; -1 if it is Leximin.
+    """
+    if type(objective) == Leximax:
+        return 1
+    elif type(objective) == Leximin:
+        return -1
+    else:
+        raise SolverError(f"Unsupported objective type {type(objective)}")
 
 def _solve_leximin_saturation(self, *args, **kwargs):
     """
@@ -150,12 +164,8 @@ def _solve_leximin_saturation(self, *args, **kwargs):
 
     I am grateful to Sylvain Bouveret for his help with the algorithm. All remaining errors and bugs are my own.
     """
-    # print("_solve_leximin_saturation args: ",args)
-
-    if type(self.objective) == Leximax:
-        sub_objectives = [-arg for arg in self.objective.args]
-    else:  # Leximin
-        sub_objectives = self.objective.args
+    sign = leximin_sign(self.objective)
+    sub_objectives = [-sign * arg for arg in self.objective.args] # +1 for leximin, -1 for leximax
 
     constraints = self.constraints
     num_of_objectives = len(sub_objectives)
@@ -237,9 +247,8 @@ def _solve_leximin_saturation(self, *args, **kwargs):
             self._status = sub_problem.status
             self._solution = sub_problem.solution
 
-            if type(self.objective) == Leximax:
-                for i in range(num_of_objectives):
-                    self.objective.args[i] = -sub_objectives[i]
+            for i in range(num_of_objectives):
+                self.objective.args[i] = - sign * sub_objectives[i]
             self._value = self.objective.value
             return self.value
 
@@ -269,14 +278,8 @@ def _solve_leximin_ordered_outcomes(self, *args, **kwargs):
     """
     # The paper solves the "lex-min-max" problem. 
     # In order to solve the "lex-max-min" problem, we have to switch signs.
-    if type(self.objective) == Leximax:  
-        sub_objectives = self.objective.args
-        sign = 1
-    elif type(self.objective) == Leximin:  
-        sub_objectives = [-arg for arg in self.objective.args]
-        sign = -1
-    else:
-        raise SolverError(f"Unsupported objective type {type(self.objective)}")
+    sign = leximin_sign(self.objective)
+    sub_objectives = [sign * arg for arg in self.objective.args]
 
     permanent_constraints = list(self.constraints)
     num_of_objectives = len(sub_objectives)
@@ -331,10 +334,8 @@ def _solve_leximin_ordered_outcomes_big_M(self, big_M=1e5, *args, **kwargs):
     Returns:
         List: Optimal values for each expression in the objective.
     """
-    if type(self.objective) == Leximin:
-        sub_objectives = [-arg for arg in self.objective.args]
-    else:  # Leximax
-        sub_objectives = self.objective.args
+    sign = leximin_sign(self.objective)
+    sub_objectives = [sign * arg for arg in self.objective.args]
 
     constraints = list(self.constraints)
     num_of_objectives = len(sub_objectives)
@@ -365,8 +366,7 @@ def _solve_leximin_ordered_outcomes_big_M(self, big_M=1e5, *args, **kwargs):
         objectives.append(t[k] == t[k].value)
 
     # Store final values
-    self._value = [scalar_value(ti.value) if type(self.objective) == Leximax else -scalar_value(ti.value) for ti in t]
-
+    self._value = [sign * scalar_value(ti.value) for ti in t]
     self._solution = sub_problem.solution
 
     return self._value
@@ -388,14 +388,8 @@ def _solve_leximin_ordered_values(self, *args, **kwargs):
     if outcome_levels is None:
         raise ValueError("The list of possible outcome values (outcome_levels) must be provided.")
 
-    if type(self.objective) == Leximax:  
-        sub_objectives = self.objective.args
-        sign = 1
-    elif type(self.objective) == Leximin:  
-        sub_objectives = [-arg for arg in self.objective.args]
-        sign = -1
-    else:
-        raise SolverError(f"Unsupported objective type {type(self.objective)}")
+    sign = leximin_sign(self.objective)
+    sub_objectives = [sign * arg for arg in self.objective.args]
 
     constraints = list(self.constraints)
     num_of_objectives = len(sub_objectives)
