@@ -23,6 +23,9 @@ The variables a[0], a[1], a[2], a[3] denote the fraction of each resource given 
 [1, 1, 0, 0]
 >>> problem.solve(method="saturation")
 [8.0, 9.0]
+>>> problem.solve(method="ordered_values", outcome_levels=[7,8,9,10])
+[8.0, 9.0]
+
 
 
 EXAMPLE 2: leximax chores allocation. There are four chores to allocate among two people.
@@ -30,12 +33,16 @@ EXAMPLE 2: leximax chores allocation. There are four chores to allocate among tw
 >>> utility_George   = (1-a[0])*2 + (1-a[1])*4 + (1-a[2])*9
 >>> objective = Leximax([utility_Alice, utility_George])
 >>> problem = Problem(objective, constraints=feasible_allocation)
->>> problem.solve()
+>>> problem.solve(method="ordered_outcomes")
 [2.0, 2.0]
 >>> round(utility_Alice.value), round(utility_George.value)
 (2, 2)
 >>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
 [0, 1, 1, 0]
+>>> problem.solve(method="saturation")
+[2.0, 2.0]
+>>> problem.solve(method="ordered_values", outcome_levels=[1,2,3,4])
+[2.0, 2.0]
 
 Author 1: Erel Segal-Halevi
 Since: 2022-02
@@ -381,12 +388,14 @@ def _solve_leximin_ordered_values(self, *args, **kwargs):
     if outcome_levels is None:
         raise ValueError("The list of possible outcome values (outcome_levels) must be provided.")
 
-    if type(self.objective) == Leximin:
-        sub_objectives = [-arg for arg in self.objective.args]
-        is_leximin = True
-    else:
+    if type(self.objective) == Leximax:  
         sub_objectives = self.objective.args
-        is_leximin = False
+        sign = 1
+    elif type(self.objective) == Leximin:  
+        sub_objectives = [-arg for arg in self.objective.args]
+        sign = -1
+    else:
+        raise SolverError(f"Unsupported objective type {type(self.objective)}")
 
     constraints = list(self.constraints)
     num_of_objectives = len(sub_objectives)
@@ -421,10 +430,7 @@ def _solve_leximin_ordered_values(self, *args, **kwargs):
         objectives.append(cvxpy.sum([h[(k, j)] for j in range(num_of_objectives)]) == fixed_val)
 
     # Return final values (one for each objective level)
-    lex_values = self.objective.value
-
-    if is_leximin:
-        lex_values = [scalar_value(-val) for val in lex_values]
+    lex_values = [sign*scalar_value(val) for val in self.objective.value]
 
     self._value = lex_values
     self._status = problem_k.status
