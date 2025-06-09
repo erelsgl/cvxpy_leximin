@@ -34,21 +34,24 @@ EXAMPLE 2: leximax chores allocation. There are four chores to allocate among tw
 >>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
 [0, 1, 1, 0]
 
-Author: Erel Segal-Halevi
+Author 1: Erel Segal-Halevi
 Since: 2022-02
+
+Author 2: Moshe Ofer
+Since: 2025-06
 """
 
 import logging
 from typing import List, Optional, Union
+from copy import deepcopy
 
 import cvxpy
-from cvxpy import Maximize, Minimize, error, Problem
+from cvxpy import Maximize, Minimize, error, Problem, SolverError
 from cvxpy.constraints.constraint import Constraint
 from cvxpy.interface.matrix_utilities import scalar_value
 from cvxpy.problems.problem import SizeMetrics, SolverStats
 
 from cvxpy_leximin.objective import Leximax, Leximin
-from copy import deepcopy
 
 LOGGER = logging.getLogger("__cvxpy_leximin__")
 
@@ -61,9 +64,11 @@ def __new__init(self,
 ) -> None:
     if constraints is None:
         constraints = []
-    # Check that objective is Minimize or Maximize.
+
+    # Check that objective belongs to one of the supported types
     if not isinstance(objective, (Minimize, Maximize, Leximin, Leximax)):
         raise error.DCPError("Problem objective must be Minimize, Maximize, Leximin or Leximax.")
+
     # Constraints and objective are immutable.
     self._objective = objective
     self._constraints = [
@@ -93,9 +98,9 @@ def __new__value(self):
     """float : The value/s from the last time the problem was solved."""
     if self._value is None:
         return None
-    elif isinstance(self._value, list):
+    elif isinstance(self._value, list):   # For Leximin and Leximax
         return [scalar_value(v) for v in self._value]
-    else:
+    else:                                 # For Maximize and Minimize
         return scalar_value(self._value)
 
 
@@ -103,19 +108,23 @@ Problem.value = property(__new__value)
 
 
 def _solve_sub_problem(self, sub_problem: cvxpy.Problem, *args, **kwargs):
+    """
+    Solves a sub-problem generated while solving a leximin / leximax problem.
+    """
     kwargs = deepcopy(kwargs)  # cvxpy.Problem.solve might modify kwargs.
     sub_problem.solve(*args, **kwargs)
     if sub_problem.status == "infeasible":
         self._status = sub_problem.status
         LOGGER.warning("Sub-problem is infeasible")
-        return False
+        raise SolverError("Sub-problem is infeasible")
+        # return False
     elif sub_problem.status == "unbounded":
         self._status = sub_problem.status
         LOGGER.warning("Sub-problem is unbounded")
-        return False
+        raise SolverError("Sub-problem is unbounded")
+        # return False
     else:
         return True
-
 
 Problem._solve_sub_problem = _solve_sub_problem
 
@@ -131,6 +140,8 @@ def _solve_leximin_saturation(self, *args, **kwargs):
 
     I am grateful to Sylvain Bouveret for his help with the algorithm. All remaining errors and bugs are my own.
     """
+    # print("_solve_leximin_saturation args: ",args)
+
     if type(self.objective) == Leximax:
         sub_objectives = [-arg for arg in self.objective.args]
     else:  # Leximin
@@ -163,8 +174,7 @@ def _solve_leximin_saturation(self, *args, **kwargs):
             objective=cvxpy.Maximize(minimum_value_for_free_objectives),
             constraints=constraints + inequalities_for_saturated_objectives + inequalities_for_free_objectives,
         )
-        if not self._solve_sub_problem(sub_problem, *args, **kwargs):
-            return
+        self._solve_sub_problem(sub_problem, *args, **kwargs)
 
         max_min_value_for_free_objectives = minimum_value_for_free_objectives.value.item()
         values_in_max_min_allocation = [objective.value for objective in sub_objectives]
@@ -193,8 +203,7 @@ def _solve_leximin_saturation(self, *args, **kwargs):
                 objective=cvxpy.Maximize(sub_objectives[ifree]),
                 constraints=constraints + inequalities_for_saturated_objectives + inequalities_for_other_free_objectives,
             )
-            if not self._solve_sub_problem(sub_problem_for_ifree, *args, **kwargs):
-                return
+            self._solve_sub_problem(sub_problem_for_ifree, *args, **kwargs)
             max_value_for_ifree = sub_objectives[ifree].value.item()
 
             if max_value_for_ifree > max_min_value_upper_threshold:
@@ -212,8 +221,7 @@ def _solve_leximin_saturation(self, *args, **kwargs):
             raise ValueError("No new saturated objectives - this contradicts Willson's theorem! Are you sure the domain is convex?")
         elif len(new_free_agents) == 0:
             LOGGER.info("All objectives are saturated -- values are %s.", map_saturated_objective_to_saturated_value)
-            if not self._solve_sub_problem(sub_problem, *args, **kwargs):
-                return
+            self._solve_sub_problem(sub_problem, *args, **kwargs)
             LOGGER.info("Final objective values: %s", [o.value for o in sub_objectives])
 
             self._status = sub_problem.status
@@ -249,15 +257,18 @@ def _solve_leximin_ordered_outcomes(self, *args, **kwargs):
     Returns:
         List: Optimal values for each expression in the objective.
     """
-    # Flip objectives if Leximin
-    if type(self.objective) == Leximin:
-        sub_objectives = [-arg for arg in self.objective.args]
-        is_leximin = True
-    else:
+    # The paper solves the "lex-min-max" problem. 
+    # In order to solve the "lex-max-min" problem, we have to switch signs.
+    if type(self.objective) == Leximax:  
         sub_objectives = self.objective.args
-        is_leximin = False
+        sign = 1
+    elif type(self.objective) == Leximin:  
+        sub_objectives = [-arg for arg in self.objective.args]
+        sign = -1
+    else:
+        raise SolverError(f"Unsupported objective type {type(self.objective)}")
 
-    constraints = list(self.constraints)
+    permanent_constraints = list(self.constraints)
     num_of_objectives = len(sub_objectives)
 
     # Define auxiliary variables t_k and d_kj
@@ -267,30 +278,25 @@ def _solve_leximin_ordered_outcomes(self, *args, **kwargs):
     # Constraints from Theorem 1
     for k in range(num_of_objectives):
         for j in range(num_of_objectives):
-            constraints.append(t[k] + d[k, j] >= sub_objectives[j])
-            constraints.append(d[k, j] >= 0)
+            permanent_constraints.append(t[k] + d[k, j] >= sub_objectives[j])
+            permanent_constraints.append(d[k, j] >= 0)
 
     # Lexicographic optimization loop
-    objectives = []
+    objectives_constraints = []
     for k in range(num_of_objectives):
         lex_obj = cvxpy.Minimize((k + 1) * t[k] + cvxpy.sum(d[k, :]))
-        problem = cvxpy.Problem(lex_obj, constraints + objectives)
-        problem.solve()
-
-        if problem.status != cvxpy.OPTIMAL:
-            raise RuntimeError(f"Subproblem {k} not solved to optimality.")
+        sub_problem = cvxpy.Problem(lex_obj, permanent_constraints + objectives_constraints)
+        self._solve_sub_problem(sub_problem, *args, **kwargs) # raise SolverError on error
 
         # Fix the current level's value for the next level
-        fixed_value = scalar_value((k + 1) * t[k].value + sum(d[k, j].value for j in range(num_of_objectives)))
-        objectives.append((k + 1) * t[k] + cvxpy.sum(d[k, :]) == fixed_value)
+        # fixed_value = scalar_value((k + 1) * t[k].value + sum(d[k, j].value for j in range(num_of_objectives)))
+        fixed_value = scalar_value(sub_problem.value)
+        objectives_constraints.append((k + 1) * t[k] + cvxpy.sum(d[k, :]) == fixed_value)
 
     # Extract results
-    self._status = problem.status
-    if is_leximin:
-        self._value = [-scalar_value(t[i].value) for i in range(num_of_objectives)]
-    else:
-        self._value = [scalar_value(t[i].value) for i in range(num_of_objectives)]
-    self._solution = problem.solution
+    self._value = [sign * scalar_value(t[i].value) for i in range(num_of_objectives)]
+    self._status = sub_problem.status
+    self._solution = sub_problem.solution  # The solution of the last sub_problem is the solution of the entire problem
 
     return self._value
 
@@ -423,25 +429,35 @@ def _solve_leximin_ordered_values(self, *args, **kwargs):
     return self._value
 
 
+# Choose default leximin algorithm here
 Problem._solve_leximin = _solve_leximin_ordered_outcomes
+# Problem._solve_leximin = _solve_leximin_saturation
 
 
 def __new__solve(self, *args, **kwargs):
+    # print("__new_solve args: ",args)
     func_name = kwargs.pop("method", None)
     if func_name is not None:
         solve_func = Problem.REGISTERED_SOLVE_METHODS[func_name]
     else:
-        if type(self.objective) == Leximin or type(self.objective) == Leximax:
-            solve_func = self._solve_leximin
+        if type(self.objective) in [Leximin,Leximax]:
+            solve_func = Problem._solve_leximin
         else:
             solve_func = Problem._solve
     return solve_func(self, *args, **kwargs)
 
 
 Problem.register_solve("willson", _solve_leximin_saturation)
+Problem.register_solve("saturation", _solve_leximin_saturation)
+
 Problem.register_solve("ogry_relax", _solve_leximin_ordered_outcomes)
+Problem.register_solve("ordered_outcomes", _solve_leximin_ordered_outcomes)
+
 Problem.register_solve("ogry_integer", _solve_leximin_ordered_outcomes_big_M)
+Problem.register_solve("ordered_outcomes_big_M", _solve_leximin_ordered_outcomes_big_M)
+
 Problem.register_solve("ordered_values", _solve_leximin_ordered_values)
+
 Problem.solve = __new__solve
 
 if __name__ == "__main__":
