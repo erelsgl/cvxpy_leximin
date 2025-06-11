@@ -1,28 +1,30 @@
-#!/usr/bin/env python3
 """
 Benchmark script for comparing different leximin/leximax solving methods.
 
 This script compares the runtime and solution quality of three different methods:
-1. _solve_leximin (Willson's algorithm)
-2. _solve_leximin_ogry_relax (Ogryczak & Śliwiński's algorithm without integer variables)
-3. _solve_leximin_ogry_integer_variables (Ogryczak & Śliwiński's algorithm with integer variables)
+1. _solve_leximin_saturation (Willson's saturation-based algorithm)
+2. _solve_leximin_ordered_outcomes (Ogryczak & Śliwiński's algorithm without integer variables)
+3. _solve_leximin_ordered_outcomes_big_M (Ogryczak & Śliwiński's algorithm with integer variables)
 
 The script creates resource allocation test instances, solves each with all three methods
 for both leximin and leximax objectives, verifies consistent results, and measures
 performance.
+
+REQUIREMENTS: in addition to cvxpy_leximin, you will also neet pandas and matplotlib
+
+Programmer: Moshe Ofer
+Since: 2025-06
 """
 
 import time
 
 import cvxpy
-import numpy as np
-import cvxpy as cp
-import pandas as pd
+from cvxpy import Variable, Problem
+import numpy as np, pandas as pd
 import matplotlib.pyplot as plt
 import logging
 from typing import Tuple, List
 
-from cvxpy import Variable, Problem
 from scipy.spatial.distance import cityblock
 
 # Import necessary functions from the module
@@ -37,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_resource_allocation_problem(n_resources: int, n_agents: int,
-                                       objective_type: str = "leximin") -> Tuple[cp.Problem, List[cp.Expression]]:
+                                       objective_type: str = "leximin") -> Tuple[cvxpy.Problem, List[cvxpy.Expression]]:
     """Create a resource allocation problem with n_resources and n_agents.
 
     Parameters:
@@ -59,7 +61,7 @@ def create_resource_allocation_problem(n_resources: int, n_agents: int,
     logger.debug(f"Valuations matrix:\n{valuations}")
 
     # Allocation variables - each a[i][j] is the fraction of resource j given to agent i
-    allocations = [cp.Variable(n_resources) for _ in range(n_agents)]
+    allocations = [cvxpy.Variable(n_resources) for _ in range(n_agents)]
 
     # Feasibility constraints
     constraints = []
@@ -74,11 +76,11 @@ def create_resource_allocation_problem(n_resources: int, n_agents: int,
         constraints.append(sum(alloc[j] for alloc in allocations) <= 1)
 
     # Calculate utilities for each agent based on their valuations
-    utilities = [cp.sum(cp.multiply(valuations[i], allocations[i])) for i in range(n_agents)]
+    utilities = [cvxpy.sum(cvxpy.multiply(valuations[i], allocations[i])) for i in range(n_agents)]
 
     # Create the problem with the appropriate objective
     objective = Leximin(utilities) if objective_type.lower() == "leximin" else Leximax(utilities)
-    problem = cp.Problem(objective, constraints)
+    problem = cvxpy.Problem(objective, constraints)
 
     return problem, utilities
 
@@ -443,5 +445,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
-    load_and_plot_results("facilities_benchmark_1.csv")
+    main()
+    # load_and_plot_results("facilities_benchmark_1.csv")

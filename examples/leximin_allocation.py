@@ -4,16 +4,19 @@ Example: computing a leximin-egalitarian resource allocation.
 See Wikipedia pages: Leximin cake-cutting, Leximin item allocation
 """
 
-import cvxpy, logging
+import logging
 from cvxpy_leximin import Problem, Leximin, Leximax, LOGGER
+from cvxpy import Variable
 
 import numpy as np
 np.set_printoptions(legacy="1.25")
 
 print("\n## Example 1")
+
 # There are four resources to allocate among two people: Alice and George.
 # The variables a[0], a[1], a[2], a[3] denote the fraction of each resource given to Alice:
-a = cvxpy.Variable(4)
+a = Variable(4)
+
 # The following constraint represents the fact that the allocation is feasible -- Alice gets between 0 and 1 fraction of each resource.
 feasible_allocation = [x >= 0 for x in a] + [x <= 1 for x in a]
 
@@ -37,6 +40,8 @@ print(
 # The utility vector is now ~(7.6, 7.6), which maximizes the smallest value.
 print(f"The allocation is: {a.value}.")
 # It is [1, 0.85, 0, 0]: Alice gets resource 0 and 85% of resource 1 (utility=7.6) and George gets 15% of resources 2 and resource 3 (utility=7.6 too).
+
+
 
 print("\n## Example 2")
 # Now, let's assume that George values the third resource at 9 (instead of 7):
@@ -64,7 +69,9 @@ LOGGER.setLevel(logging.INFO)
 problem.solve()
 
 
-print("\n## Example 3: leximax allocation\n")
+
+
+print("\n## Example 3: leximax allocation of chores\n")
 utility_Alice = a[0] * 5 + a[1] * 2 + a[2] * 0
 utility_George = (1 - a[0]) * 2 + (1 - a[1]) * 4 + (1 - a[2]) * 9
 problem = Problem(
