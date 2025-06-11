@@ -1,0 +1,5 @@
+TODO:
+
+* Unit-test + benchmark for ordered values;
+* Benchmark for continuous problems;
+* Fix bug in checking different objectives.
