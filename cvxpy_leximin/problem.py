@@ -312,6 +312,8 @@ def _solve_leximin_ordered_outcomes(self, *args, **kwargs):
     self._status = sub_problem.status
     self._solution = sub_problem.solution  # The solution of the last sub_problem is the solution of the entire problem
 
+    LOGGER.info("Final objective values: %s", self._value)
+
     return self._value
 
 
@@ -448,6 +450,7 @@ def __new__solve(self, *args, **kwargs):
             solve_func = Problem._solve_leximin
         else:
             solve_func = Problem._solve
+    LOGGER.debug("solve function = '%s'", solve_func.__name__)
     return solve_func(self, *args, **kwargs)
 
 

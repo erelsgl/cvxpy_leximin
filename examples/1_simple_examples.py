@@ -65,11 +65,11 @@ print(f"The allocation is: {a.value}.")
 print("\n## Example 2 with logging\n")
 # To see the computation, activate the logger:
 LOGGER.addHandler(logging.StreamHandler())
-LOGGER.setLevel(logging.INFO)
+LOGGER.setLevel(logging.DEBUG)
 problem.solve()
 
-
-
+print("\n## Example 2 with a different solve method\n")
+problem.solve(method="saturation")   # Default method: "ordered_outcomes"
 
 print("\n## Example 3: leximax allocation of chores\n")
 utility_Alice = a[0] * 5 + a[1] * 2 + a[2] * 0
