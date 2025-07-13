@@ -1,0 +1,37 @@
+problem_type,objective_type,method,repeats,n_resources,n_agents,time,success,solution_value,error,min_time,max_time
+resource_allocation,leximax,willson,1,5,3,0.06125068664550781,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.06125068664550781,0.06125068664550781
+resource_allocation,leximax,willson,1,5,4,0.06233096122741699,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.06233096122741699,0.06233096122741699
+resource_allocation,leximax,willson,1,5,5,0.1112067699432373,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.1112067699432373,0.1112067699432373
+resource_allocation,leximax,willson,1,10,3,0.06969428062438965,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.06969428062438965,0.06969428062438965
+resource_allocation,leximax,willson,1,10,4,0.10918903350830078,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.10918903350830078,0.10918903350830078
+resource_allocation,leximax,willson,1,10,5,0.18035006523132324,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.18035006523132324,0.18035006523132324
+resource_allocation,leximax,willson,1,15,3,0.09802842140197754,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.09802842140197754,0.09802842140197754
+resource_allocation,leximax,willson,1,15,4,0.182265043258667,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.182265043258667,0.182265043258667
+resource_allocation,leximax,willson,1,15,5,0.19169902801513672,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.19169902801513672,0.19169902801513672
+resource_allocation,leximax,ogry_relax,1,5,3,0.08042645454406738,True,"[np.float64(-0.0), np.float64(-0.0), np.float64(-0.0)]",,0.08042645454406738,0.08042645454406738
+resource_allocation,leximax,ogry_relax,1,5,4,0.07666969299316406,True,"[np.float64(-0.0), np.float64(-0.0), np.float64(-0.0), np.float64(-0.0)]",,0.07666969299316406,0.07666969299316406
+resource_allocation,leximax,ogry_relax,1,5,5,0.12473297119140625,True,"[np.float64(-0.0), np.float64(-0.0), np.float64(-0.0), np.float64(-0.0), np.float64(-0.0)]",,0.12473297119140625,0.12473297119140625
+resource_allocation,leximax,ogry_relax,1,10,3,0.08065271377563477,True,"[np.float64(-0.0), np.float64(-0.0), np.float64(-0.0)]",,0.08065271377563477,0.08065271377563477
+resource_allocation,leximax,ogry_relax,1,10,4,0.10260939598083496,True,"[np.float64(-0.0), np.float64(-0.0), np.float64(-0.0), np.float64(-0.0)]",,0.10260939598083496,0.10260939598083496
+resource_allocation,leximax,ogry_relax,1,10,5,0.19661688804626465,True,"[np.float64(-0.0), np.float64(-0.0), np.float64(-0.0), np.float64(-0.0), np.float64(-0.0)]",,0.19661688804626465,0.19661688804626465
+resource_allocation,leximax,ogry_relax,1,15,3,0.0804898738861084,True,"[np.float64(-0.0), np.float64(-0.0), np.float64(-0.0)]",,0.0804898738861084,0.0804898738861084
+resource_allocation,leximax,ogry_relax,1,15,4,0.167710542678833,True,"[np.float64(-0.0), np.float64(-0.0), np.float64(-0.0), np.float64(-0.0)]",,0.167710542678833,0.167710542678833
+resource_allocation,leximax,ogry_relax,1,15,5,0.25183653831481934,True,"[np.float64(-0.0), np.float64(-0.0), np.float64(-0.0), np.float64(-0.0), np.float64(-0.0)]",,0.25183653831481934,0.25183653831481934
+resource_allocation,leximax,ogry_integer,1,5,3,0.03564310073852539,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.03564310073852539,0.03564310073852539
+resource_allocation,leximax,ogry_integer,1,5,4,0.07104945182800293,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.07104945182800293,0.07104945182800293
+resource_allocation,leximax,ogry_integer,1,5,5,0.10101509094238281,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.10101509094238281,0.10101509094238281
+resource_allocation,leximax,ogry_integer,1,10,3,0.04557204246520996,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.04557204246520996,0.04557204246520996
+resource_allocation,leximax,ogry_integer,1,10,4,0.12254142761230469,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.12254142761230469,0.12254142761230469
+resource_allocation,leximax,ogry_integer,1,10,5,0.17532896995544434,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.17532896995544434,0.17532896995544434
+resource_allocation,leximax,ogry_integer,1,15,3,0.07402491569519043,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.07402491569519043,0.07402491569519043
+resource_allocation,leximax,ogry_integer,1,15,4,0.12096738815307617,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.12096738815307617,0.12096738815307617
+resource_allocation,leximax,ogry_integer,1,15,5,0.23644161224365234,True,"[np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0), np.float64(0.0)]",,0.23644161224365234,0.23644161224365234
+resource_allocation,leximax,ordered_values,1,5,3,inf,False,,,inf,inf
+resource_allocation,leximax,ordered_values,1,5,4,inf,False,,,inf,inf
+resource_allocation,leximax,ordered_values,1,5,5,inf,False,,,inf,inf
+resource_allocation,leximax,ordered_values,1,10,3,inf,False,,,inf,inf
+resource_allocation,leximax,ordered_values,1,10,4,inf,False,,,inf,inf
+resource_allocation,leximax,ordered_values,1,10,5,inf,False,,,inf,inf
+resource_allocation,leximax,ordered_values,1,15,3,inf,False,,,inf,inf
+resource_allocation,leximax,ordered_values,1,15,4,inf,False,,,inf,inf
+resource_allocation,leximax,ordered_values,1,15,5,inf,False,,,inf,inf

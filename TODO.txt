@@ -1,7 +1,6 @@
 TODO:
 
-* Unit-test + benchmark for ordered values;
-* Benchmark for continuous problems;
+--- Unit-test + benchmark for ordered values;
+--- Benchmark for continuous problems;
 * Fix bug in checking different objectives.
-* Use experiments_csv for the benchmark.
-
+---  Use experiments_csv for the benchmark.
