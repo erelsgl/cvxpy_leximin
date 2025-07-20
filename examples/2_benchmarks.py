@@ -196,7 +196,7 @@ def single_experiment(problem_type: str, objective_type: str, method: str, repea
     }
 
 
-def plot_results_from_csv(results_file: str, problem_type: str):
+def plot_results_from_csv(results_file: str, problem_type: str, results_dir: str = "../results/"):
     """Plot the benchmark results from a CSV file."""
     # Read results
     results = pd.read_csv(results_file)
@@ -273,7 +273,7 @@ def plot_results_from_csv(results_file: str, problem_type: str):
     plt.suptitle("Performance Comparison of Leximin/Leximax Methods", fontsize=16)
     plt.tight_layout()
     filename = f"{problem_type}_comparison.png"
-    plt.savefig(filename, dpi=300, bbox_inches="tight")
+    plt.savefig(f"{results_dir}/{filename}", dpi=300, bbox_inches="tight")
     logger.info(f"Plot saved to {filename}")
     plt.close()
 
@@ -289,7 +289,7 @@ def main():
                         help="Methods to benchmark")
     parser.add_argument("--repeats", type=int, default=1,
                         help="Number of repetitions for each method")
-    parser.add_argument("--results_dir", default="results/",
+    parser.add_argument("--results_dir", default="../results/",
                         help="Directory for results")
     parser.add_argument("--results_file", default="benchmark_results.csv",
                         help="CSV file name for results")
@@ -317,7 +317,8 @@ def main():
     # If plot_only is specified, just plot and exit
     if args.plot_only:
         results_path = f"{args.results_dir}{args.results_file}"
-        plot_results_from_csv(results_path, args.problem_type)
+        plot_results_from_csv(results_path, args.problem_type, args.results_dir)
+        logger.info("Plotting results from CSV file")
         return
 
     # Define parameter ranges based on problem type
@@ -350,7 +351,7 @@ def main():
 
     # Plot the results
     results_path = f"{args.results_dir}{args.results_file}"
-    plot_results_from_csv(results_path, args.problem_type)
+    plot_results_from_csv(results_path, args.problem_type, args.results_dir)
 
     # Print summary
     results = pd.read_csv(results_path)
