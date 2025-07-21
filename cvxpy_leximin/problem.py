@@ -25,7 +25,7 @@ The variables a[0], a[1], a[2], a[3] denote the fraction of each resource given 
 [8.0, 9.0]
 >>> problem.solve(method="ordered_outcomes_big_M")
 [8.0, 9.0]
->>> problem.solve(method="ordered_values", outcome_levels=[7,8,9,10])
+>>> problem.solve(method="ordered_values", outcome_levels = [1, 0])
 [8.0, 9.0]
 
 
@@ -39,14 +39,39 @@ EXAMPLE 2: leximax chores allocation. There are four chores to allocate among tw
 [2.0, 2.0]
 >>> round(utility_Alice.value), round(utility_George.value)
 (2, 2)
->>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
+>>> [round(x.value) for x in a]  # Alice gets all of resources 1 and 2; George gets all of resources 0 and 3.
 [0, 1, 1, 0]
 >>> problem.solve(method="saturation")
 [2.0, 2.0]
 >>> problem.solve(method="ordered_outcomes_big_M")
 [2.0, 2.0]
->>> problem.solve(method="ordered_values", outcome_levels=[1,2,3,4])
+>>> problem.solve(method="ordered_values", outcome_levels = [1, 0])
 [2.0, 2.0]
+
+
+
+EXAMPLE 3: leximin server assignment. There are 6 identical servers to assign among 3 users.
+Each user gets some whole number of servers (0, 1, 2, 3, 4, 5, or 6).
+User A values each server at 10 utility points.
+User B values each server at 15 utility points.
+User C values each server at 8 utility points.
+The variables s[0], s[1], s[2] denote the number of servers given to each user.
+>>> s = cvxpy.Variable(3, integer=True)
+>>> feasible_assignment = [s >= 0, cvxpy.sum(s) == 6, s <= 6]
+
+>>> utility_A = s[0] * 10
+>>> utility_B = s[1] * 15
+>>> utility_C = s[2] * 8
+>>> objective = Leximin([utility_A, utility_B, utility_C])
+>>> problem = Problem(objective, constraints=feasible_assignment)
+>>> problem.solve(method="saturation")
+[20.0, 30.0, 16.0]
+>>> [int(x.value) for x in s]  # servers assigned to A, B, C
+[2, 2, 2]
+>>> int(utility_A.value), int(utility_B.value), int(utility_C.value)
+(20, 30, 16)
+>>> problem.solve(method="ordered_values", outcome_levels = [90, 75, 60, 50, 48, 45, 40, 32, 30, 24, 20, 16, 15, 10, 8, 0])
+[20.0, 30.0, 16.0]
 
 Author 1: Erel Segal-Halevi
 Since: 2022-02
@@ -392,11 +417,14 @@ def _solve_leximin_ordered_values(self, *args, **kwargs):
 
     sign = leximin_sign(self.objective)
     sub_objectives = [sign * arg for arg in self.objective.args]
+    
+    # Apply the same sign transformation to outcome_levels
+    transformed_outcome_levels = sorted([sign * level for level in outcome_levels], reverse=True)
 
     constraints = list(self.constraints)
     num_of_objectives = len(sub_objectives)
 
-    r = len(outcome_levels)
+    r = len(transformed_outcome_levels)
 
     # Variables: h_{kj} for k = 2..r and j = 1..num_of_objectives
     h = {
@@ -407,7 +435,7 @@ def _solve_leximin_ordered_values(self, *args, **kwargs):
 
     # Constraints for h_{kj} ≥ f_j(x) - v_k
     for k in range(1, r):
-        v_k = outcome_levels[k]
+        v_k = transformed_outcome_levels[k]
         for j in range(num_of_objectives):
             constraints.append(h[(k, j)] >= sub_objectives[j] - v_k)
 
@@ -425,10 +453,7 @@ def _solve_leximin_ordered_values(self, *args, **kwargs):
         fixed_val = scalar_value(sum(h[(k, j)].value for j in range(num_of_objectives)))
         objectives.append(cvxpy.sum([h[(k, j)] for j in range(num_of_objectives)]) == fixed_val)
 
-    # Return final values (one for each objective level)
-    lex_values = [sign*scalar_value(val) for val in self.objective.value]
-
-    self._value = lex_values
+    self._value = self.objective.value
     self._status = problem_k.status
     self._solution = problem_k.solution
 
