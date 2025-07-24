@@ -15,16 +15,17 @@ The variables a[0], a[1], a[2], a[3] denote the fraction of each resource given 
 >>> utility_George   = (1-a[0])*2 + (1-a[1])*4 + (1-a[2])*9
 >>> objective = Leximin([utility_Alice, utility_George])
 >>> problem = Problem(objective, constraints=feasible_allocation)
->>> problem.solve(method="ordered_outcomes")
-[8.0, 9.0]
->>> round(utility_Alice.value), round(utility_George.value)
-(8, 9)
+>>> _=problem.solve(method="ordered_outcomes")
+>>> round(utility_Alice.value,1), round(utility_George.value,1)
+(8.0, 9.0)
 >>> [round(x.value) for x in a]  # Alice gets all of resources 0 and 1; George gets all of resources 2 and 3.
 [1, 1, 0, 0]
->>> problem.solve(method="saturation")
-[8.0, 9.0]
->>> problem.solve(method="ordered_outcomes_big_M")
-[8.0, 9.0]
+>>> _=problem.solve(method="saturation")
+>>> round(utility_Alice.value,1), round(utility_George.value,1)
+(8.0, 9.0)
+>>> _=problem.solve(method="ordered_outcomes_big_M")
+>>> round(utility_Alice.value,1), round(utility_George.value,1)
+(8.0, 9.0)
 
 
 EXAMPLE 2: leximax chores allocation. There are four chores to allocate among two people.
@@ -32,16 +33,17 @@ EXAMPLE 2: leximax chores allocation. There are four chores to allocate among tw
 >>> utility_George   = (1-a[0])*2 + (1-a[1])*4 + (1-a[2])*9
 >>> objective = Leximax([utility_Alice, utility_George])
 >>> problem = Problem(objective, constraints=feasible_allocation)
->>> problem.solve(method="ordered_outcomes")
-[2.0, 2.0]
->>> round(utility_Alice.value), round(utility_George.value)
-(2, 2)
+>>> _=problem.solve(method="ordered_outcomes")
+>>> round(utility_Alice.value,1), round(utility_George.value,1)
+(2.0, 2.0)
 >>> [round(x.value) for x in a]  # Alice gets all of resources 1 and 2; George gets all of resources 0 and 3.
 [0, 1, 1, 0]
->>> problem.solve(method="saturation")
-[2.0, 2.0]
->>> problem.solve(method="ordered_outcomes_big_M")
-[2.0, 2.0]
+>>> _=problem.solve(method="saturation")
+>>> round(utility_Alice.value,1), round(utility_George.value,1)
+(2.0, 2.0)
+>>> _=problem.solve(method="ordered_outcomes_big_M")
+>>> round(utility_Alice.value,1), round(utility_George.value,1)
+(2.0, 2.0)
 
 
 To check ordered-values, we need a discrete problem, with a finite number of utility values.
