@@ -475,7 +475,7 @@ def __new__solve(self, *args, **kwargs):
             solve_func = Problem._solve_leximin
         else:
             solve_func = Problem._solve
-    LOGGER.debug("solve function = '%s'", solve_func.__name__)
+    # LOGGER.debug("solve function = '%s'", solve_func.__name__)
     return solve_func(self, *args, **kwargs)
 
 

@@ -57,17 +57,20 @@ For more examples, see the [examples folder](examples/).
 
 ## Credits
 
-The algorithm is based on:
+The ordered outcomes and ordered values algorithms are based on 
+> Ogryczak and Śliwiński (2006),
+> ["On Direct Methods for Lexicographic Min-Max Optimization"](https://link.springer.com/chapter/10.1007/11751595_85).
+Programmed by Moshe Ofer.
+
+The saturation algorithm is based on:
 > [Stephen J. Willson](https://faculty.sites.iastate.edu/swillson/),
 > "Fair Division Using Linear Programming" (1998).
 > Part 6, pages 20--27.
-
 I am grateful to Sylvain Bouveret for his help with the algorithm. All remaining errors and bugs are my own.
+
 
 ## Status
 
 The functionality was tested only on fair allocation problems, only on objectives with linear expressions, and only on the default solver (SCIPY).
 
 If you would like to contribute, it could be great to test leximin optimization on other kinds of problems, expressions and solvers.
-
-

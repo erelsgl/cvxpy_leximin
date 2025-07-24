@@ -85,3 +85,24 @@ print(
 # The utility vector is now ~(2,2). It minimizes the largest value.
 print(f"The allocation is: {a.value}.")
 # It is ~[0, 1, 1, 0]: Alice gets resources 1 and 2 (utility=2) and George gets resources 0 and 3 (utility=2 too).
+
+
+
+print("\n## Example 4: ordered values algorithm\n")
+# To check ordered-values, we need a discrete problem, with a finite number of utility values.
+# EXAMPLE 3: leximin server assignment. There are 7 identical servers to assign among 3 users.
+# Each user gets some whole number of servers (0, 1, 2, 3, 4, 5, 6 or 7).
+# User A values each server at 10 utility points.
+# User B values each server at 15 utility points.
+# User C values each server at 8 utility points.
+# The variables s[0], s[1], s[2] denote the number of servers given to each user.
+s = Variable(3, integer=True)
+feasible_assignment = [s >= 0, sum(s) == 7, s <= 7]
+utility_A = s[0] * 10
+utility_B = s[1] * 15
+utility_C = s[2] * 8
+objective = Leximin([utility_A, utility_B, utility_C])
+problem = Problem(objective, constraints=feasible_assignment)
+problem.solve(method="ordered_values", outcome_levels = [105, 90, 75, 70, 60, 56, 50, 48, 45, 40, 32, 30, 24, 20, 16, 15, 10, 8, 0])
+print([int(x.value) for x in s])  # servers assigned to A, B, C
+print(int(utility_A.value), int(utility_B.value), int(utility_C.value))
