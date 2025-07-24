@@ -58,7 +58,7 @@ For more examples, see the [examples folder](examples/).
 ## Credits
 
 The ordered outcomes and ordered values algorithms are based on 
-> Ogryczak and Śliwiński (2006),
+> Ogryczak and Sliwinski (2006),
 > ["On Direct Methods for Lexicographic Min-Max Optimization"](https://link.springer.com/chapter/10.1007/11751595_85).
 Programmed by Moshe Ofer.
 
@@ -74,3 +74,5 @@ I am grateful to Sylvain Bouveret for his help with the algorithm. All remaining
 The functionality was tested only on fair allocation problems, only on objectives with linear expressions, and only on the default solver (SCIPY).
 
 If you would like to contribute, it could be great to test leximin optimization on other kinds of problems, expressions and solvers.
+
+
