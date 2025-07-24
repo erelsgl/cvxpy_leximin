@@ -71,11 +71,11 @@ class MutliExpressionObjective(cvxpy.problems.objective.Objective):
         ]
 
     def is_quadratic(self) -> bool:
-        """Returns if all objectives are quadratic functions."""
+        """Returns True if all objectives are quadratic functions."""
         return all([arg.is_quadratic() for arg in self.args])
 
     def is_qpwa(self) -> bool:
-        """Returns if all objectives are quadratic of piecewise affine."""
+        """Returns True if all objectives are quadratic or piecewise affine."""
         return all([arg.is_qpwa() for arg in self.args])
 
     @abc.abstractmethod
@@ -219,6 +219,4 @@ class Leximax(MutliExpressionObjective):
 
 if __name__ == "__main__":
     import doctest
-
-    (failures, tests) = doctest.testmod(report=True)
-    print("{} failures, {} tests".format(failures, tests))
+    print(doctest.testmod())
