@@ -36,6 +36,7 @@ setuptools.setup(
 )
 
 # Build:
+#   pip install setuptools build twine
 #   Delete old folders: build, dist, *.egg_info, .venv_test.
 #   Then run:
 #        build
